@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                   String         @id @default(cuid())
+  name                 String
+  email                String         @unique
+  phone                String?
+  address              String?
+  plan                 String         @default("starter")
+  active               Boolean        @default(true)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  paymentStatus        String         @default("active")
+  businessHoursStart   String         @default("08:00")
+  businessHoursEnd     String         @default("18:00")
+  welcomeMessage       String         @default("Olá! Como posso ajudá-lo?")
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  users                User[]
+  conversations        Conversation[]
+  channels             Channel[]
+  chatbotRules         ChatbotRule[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("agent")
+  avatar    String?
+  online    Boolean  @default(false)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedConversations Conversation[] @relation("AssignedAgent")
+  messages              Message[]
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  type        String
+  name        String
+  accountId   String?
+  accessToken String?
+  connected   Boolean  @default(false)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+
+  conversations Conversation[]
+}
+
+model Conversation {
+  id             String   @id @default(cuid())
+  customerName   String
+  customerEmail  String?
+  customerPhone  String?
+  customerAvatar String?
+  channel        String
+  status         String   @default("open")
+  unreadCount    Int      @default(0)
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  channelId      String?
+  channelRef     Channel? @relation(fields: [channelId], references: [id])
+  agentId        String?
+  agent          User?    @relation("AssignedAgent", fields: [agentId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  messages Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String
+  senderType     String
+  senderId       String?
+  sender         User?        @relation(fields: [senderId], references: [id])
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  read           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+model ChatbotRule {
+  id        String  @id @default(cuid())
+  keyword   String
+  response  String
+  active    Boolean @default(true)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+}
+
+model Plan {
+  id          String @id @default(cuid())
+  name        String
+  slug        String @unique
+  price       Float
+  maxAgents   Int
+  maxChannels Int
+  maxMessages Int
+  features    String
+  stripePriceId String?
+}

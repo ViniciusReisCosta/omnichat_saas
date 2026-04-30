@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1273eb;
+  --color-secondary: #ee2852;
+  --dark: #040836;
+  --dark-secondary: #202942;
+  --color-heading: #202942;
+  --color-paragraph: #666666;
+  --bg-gray: #f7f7f7;
+  --bg-gradient: linear-gradient(45deg, #ee2852 0%, #1273eb 50%);
+}
+
+* {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 26px;
+  overflow-x: hidden;
+  color: var(--color-paragraph);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-heading);
+  font-weight: normal;
+  line-height: 1.2;
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+a {
+  transition: all 0.35s ease-in-out;
+  text-decoration: none;
+  color: var(--color-heading);
+}
+
+a:hover {
+  text-decoration: none;
+  opacity: 1;
+}
+
+@layer components {
+  .btn-primary-fill {
+    @apply inline-block px-10 py-4 bg-primary text-white font-bold text-sm rounded-pill
+    border-2 border-primary relative overflow-hidden z-[1] transition-all duration-300;
+  }
+  .btn-primary-fill:hover {
+    @apply bg-transparent text-primary;
+  }
+
+  .btn-primary-outline {
+    @apply inline-block px-10 py-4 text-primary font-bold text-sm rounded-pill
+    border-2 border-primary relative overflow-hidden z-[1] transition-all duration-300;
+  }
+  .btn-primary-outline:hover {
+    @apply bg-primary text-white;
+  }
+
+  .btn-gradient {
+    @apply inline-block px-10 py-4 text-white font-bold text-sm rounded-pill
+    relative overflow-hidden z-[1] transition-all duration-300;
+    background: var(--bg-gradient);
+    background-size: 200% 100%;
+  }
+  .btn-gradient:hover {
+    background-position: 100% 0;
+  }
+
+  .btn-light-fill {
+    @apply inline-block px-10 py-4 bg-white text-heading font-bold text-sm rounded-pill
+    border-2 border-white relative overflow-hidden z-[1] transition-all duration-300;
+  }
+  .btn-light-fill:hover {
+    @apply bg-transparent text-white;
+  }
+
+  .sub-title {
+    @apply uppercase font-extrabold text-sm inline-block relative z-[1];
+    font-family: 'Manrope', sans-serif;
+    background: var(--bg-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 280% 150%;
+  }
+
+  .section-padding {
+    @apply py-[120px];
+  }
+
+  .section-padding-sm {
+    @apply py-20;
+  }
+
+  .card-shadow {
+    @apply bg-white rounded-card shadow-card;
+  }
+
+  .gradient-text {
+    background: var(--bg-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 280% 150%;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
