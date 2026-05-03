@@ -226,10 +226,10 @@ async function main() {
       { content: 'Ótimo, obrigado! Mas posso alterar o endereço de entrega?', senderType: 'customer', conversationId: conv1.id, read: false, createdAt: mins(5) },
       { content: 'O prazo para alteração já passou?', senderType: 'customer', conversationId: conv1.id, read: false, createdAt: mins(3) },
 
-      { content: 'Oi, vi o produto no stories e quero saber o preço', senderType: 'customer', conversationId: conv2.id, read: true, createdAt: mins(60) },
-      { content: 'Olá Camila! Qual produto você viu?', senderType: 'agent', senderId: agent3.id, conversationId: conv2.id, read: true, createdAt: mins(55) },
-      { content: 'A bolsa marrom que vocês postaram ontem', senderType: 'customer', conversationId: conv2.id, read: true, createdAt: mins(50) },
-      { content: 'A bolsa Modelo Classic está por R$ 299,90. Quer que eu reserve para você?', senderType: 'agent', senderId: agent3.id, conversationId: conv2.id, read: true, createdAt: mins(48) },
+      // { content: 'Oi, vi o produto no stories e quero saber o preço', senderType: 'customer', conversationId: conv2.id, read: true, createdAt: mins(60) },
+      // { content: 'Olá Camila! Qual produto você viu?', senderType: 'agent', senderId: agent3.id, conversationId: conv2.id, read: true, createdAt: mins(55) },
+      // { content: 'A bolsa marrom que vocês postaram ontem', senderType: 'customer', conversationId: conv2.id, read: true, createdAt: mins(50) },
+      // { content: 'A bolsa Modelo Classic está por R$ 299,90. Quer que eu reserve para você?', senderType: 'agent', senderId: agent3.id, conversationId: conv2.id, read: true, createdAt: mins(48) },
 
       { content: 'Boa tarde, tenho uma reclamação', senderType: 'customer', conversationId: conv3.id, read: true, createdAt: mins(120) },
       { content: 'Comprei um produto e veio com defeito', senderType: 'customer', conversationId: conv3.id, read: true, createdAt: mins(119) },
