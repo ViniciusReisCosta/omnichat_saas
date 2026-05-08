@@ -105,7 +105,7 @@ export default function Footer() {
                 </div>
                 <div>
                   <strong className="text-white text-sm">Phone:</strong>
-                  <p className="text-gray-400 text-sm">+55 11 9999-0000</p>
+                  <p className="text-gray-400 text-sm"> +55 83 998367208</p>
                 </div>
               </li>
             </ul>

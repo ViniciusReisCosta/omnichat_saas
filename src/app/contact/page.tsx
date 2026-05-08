@@ -19,7 +19,7 @@ const contactCards = [
   {
     icon: 'fas fa-phone',
     title: 'Call Us',
-    text: '+55 11 9999-0000',
+    text: '+55 83 998367208',
   },
 ];
 
