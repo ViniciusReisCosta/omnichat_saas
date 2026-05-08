@@ -46,7 +46,7 @@ async function main() {
     data: {
       name: 'Loja Digital',
       email: 'suporte@lojadigital.com',
-      phone: '+55 21 9876-5432',
+      phone: '+55 83 998367208',
       address: 'Rua das Flores, 250 - Rio de Janeiro, RJ',
       plan: 'starter',
       active: true,
