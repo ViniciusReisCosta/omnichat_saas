@@ -23,7 +23,7 @@ async function main() {
   const superAdmin = await prisma.user.create({
     data: {
       name: 'Super Admin',
-      email: 'admin@omniconnect.com',
+      email: 'admin@cberhunt.com',
       password: bcrypt.hashSync('admin123', 10),
       role: 'super_admin',
       online: true,

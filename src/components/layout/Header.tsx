@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import logo from '@/assets/logo.png';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -23,19 +25,8 @@ export default function Header() {
         }`}
       >
         <div className="container mx-auto max-w-container px-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                <i className="fas fa-comments text-white text-lg"></i>
-              </div>
-              <span
-                className={`text-2xl font-extrabold font-heading transition-colors duration-300 ${
-                  scrolled ? 'text-heading' : 'text-white'
-                }`}
-              >
-                Omni<span className="text-primary">Connect</span>
-              </span>
-            </div>
+          <Link href="/" className="flex items-center">
+            <Image src={logo} alt="CberHunt" priority className="h-10 w-auto" />
           </Link>
 
           <ul className="hidden lg:flex items-center gap-8">

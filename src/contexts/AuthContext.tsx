@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('omni_token');
+    const token = localStorage.getItem('cber_token');
     if (!token) {
       setLoading(false);
       return;
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return res.json();
       })
       .then((data) => setUser(data))
-      .catch(() => localStorage.removeItem('omni_token'))
+      .catch(() => localStorage.removeItem('cber_token'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
 
-    localStorage.setItem('omni_token', data.token);
+    localStorage.setItem('cber_token', data.token);
     setUser(data.user);
   };
 
@@ -76,12 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-    localStorage.setItem('omni_token', data.token);
+    localStorage.setItem('cber_token', data.token);
     setUser(data.user);
   };
 
   const logout = () => {
-    localStorage.removeItem('omni_token');
+    localStorage.removeItem('cber_token');
     setUser(null);
     router.push('/login');
   };

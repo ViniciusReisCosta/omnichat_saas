@@ -15,7 +15,7 @@ const connectedChannels = [
     icon: 'fab fa-instagram',
     color: '#E4405F',
     connected: true,
-    detail: '@omniconnect.br',
+    detail: '@cberhunt.br',
     sent: 3200,
     received: 5100,
   },

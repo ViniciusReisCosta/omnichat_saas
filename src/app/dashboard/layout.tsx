@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import logo from '@/assets/logo.png';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, isAuthenticated, logout } = useAuth();
@@ -69,11 +71,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[#f0f2f5]">
       <aside className={`fixed top-0 left-0 h-full ${sidebarWidth} bg-dark z-50 flex flex-col transition-all duration-300`}>
         <div className="h-16 flex items-center px-4 border-b border-white/10">
-          <Link href="/dashboard" className="flex items-center gap-2 overflow-hidden">
-            <div className="w-8 h-8 min-w-[32px] rounded-lg bg-primary flex items-center justify-center">
-              <i className="fas fa-comments text-white text-sm"></i>
-            </div>
-            {!collapsed && <span className="text-lg font-extrabold font-heading text-white whitespace-nowrap">Omni<span className="text-primary">Connect</span></span>}
+          <Link href="/dashboard" className="flex items-center overflow-hidden">
+            <Image src={logo} alt="CberHunt" priority className="h-8 w-auto max-w-none rounded-md bg-white p-1" />
           </Link>
         </div>
 

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import Image from 'next/image';
+import logo from '@/assets/logo.png';
 
 export default function Footer() {
   return (
@@ -6,14 +8,7 @@ export default function Footer() {
       <div className="container mx-auto max-w-container px-4">
         <div className="py-[120px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                <i className="fas fa-comments text-white text-lg"></i>
-              </div>
-              <span className="text-2xl font-extrabold font-heading text-white">
-                Omni<span className="text-primary">Connect</span>
-              </span>
-            </div>
+            <Image src={logo} alt="CberHunt" className="h-10 w-auto mb-6 rounded-md bg-white p-1.5" />
             <p className="text-gray-400 mb-6 leading-relaxed">
               Centralize all your customer communications in a single, powerful platform. WhatsApp, Instagram, and Facebook Messenger — all in one inbox.
             </p>
@@ -96,7 +91,7 @@ export default function Footer() {
                 </div>
                 <div>
                   <strong className="text-white text-sm">Email:</strong>
-                  <p className="text-gray-400 text-sm">contact@omniconnect.com</p>
+                  <p className="text-gray-400 text-sm">contact@cberhunt.com</p>
                 </div>
               </li>
               <li className="flex gap-3">
@@ -116,7 +111,7 @@ export default function Footer() {
       <div className="border-t border-white/10">
         <div className="container mx-auto max-w-container px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-gray-400 text-sm">
-            &copy; {new Date().getFullYear()} OmniConnect. All Rights Reserved.
+            &copy; {new Date().getFullYear()} CberHunt. All Rights Reserved.
           </p>
           <ul className="flex gap-6">
             <li><a href="#" className="text-gray-400 text-sm hover:text-white transition-colors">Terms</a></li>

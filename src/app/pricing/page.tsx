@@ -61,7 +61,7 @@ const plans = [
 
 const faqs = [
   {
-    question: 'Can I try OmniConnect before purchasing?',
+    question: 'Can I try CberHunt before purchasing?',
     answer:
       'Yes! We offer a 14-day free trial on all plans with no credit card required. You can explore every feature and decide which plan fits your team best.',
   },

@@ -58,7 +58,7 @@ function GeneralTab() {
             <label className="block text-sm font-medium text-heading mb-1.5">Company Name</label>
             <input
               type="text"
-              defaultValue="OmniConnect Brasil"
+              defaultValue="CberHunt Brasil"
               className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
@@ -66,7 +66,7 @@ function GeneralTab() {
             <label className="block text-sm font-medium text-heading mb-1.5">Email</label>
             <input
               type="email"
-              defaultValue="admin@omniconnect.com.br"
+              defaultValue="admin@cberhunt.com.br"
               className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
@@ -227,7 +227,7 @@ function BillingTab() {
 
 function APITab() {
   const [showKey, setShowKey] = useState(false);
-  const apiKey = 'sk_live_omni_7f3a9b2c4d5e6f1a8b9c0d1e2f3a4b5c';
+  const apiKey = 'sk_live_cber_7f3a9b2c4d5e6f1a8b9c0d1e2f3a4b5c';
 
   return (
     <div className="space-y-6">
@@ -261,7 +261,7 @@ function APITab() {
         <div className="flex items-center gap-3">
           <input
             type="url"
-            defaultValue="https://api.omniconnect.com.br/webhooks/v1"
+            defaultValue="https://api.cberhunt.com.br/webhooks/v1"
             className="flex-1 h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           />
           <button className="h-11 px-6 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors">

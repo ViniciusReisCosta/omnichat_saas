@@ -14,7 +14,7 @@ const contactCards = [
   {
     icon: 'fas fa-envelope',
     title: 'Email Us',
-    text: 'contact@omniconnect.com',
+    text: 'contact@cberhunt.com',
   },
   {
     icon: 'fas fa-phone',
@@ -78,7 +78,7 @@ export default function ContactPage() {
                 Send Us a Message
               </h2>
               <p className="text-paragraph leading-relaxed mb-8">
-                Have a question, feedback, or want to learn more about OmniConnect? Fill out the form
+                Have a question, feedback, or want to learn more about CberHunt? Fill out the form
                 and our team will get back to you within 24 hours.
               </p>
               <div className="space-y-6">

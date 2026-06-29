@@ -1,4 +1,4 @@
-# OmniConnect
+# CberHunt
 
 Multi-channel customer communication SaaS: unified inbox, team and company management, rule-based chatbot helpers, and subscription-oriented data models. Built as a [Next.js](https://nextjs.org/) App Router application with a Portuguese (pt-BR) marketing surface and JWT-based sessions.
 
@@ -10,7 +10,7 @@ Multi-channel customer communication SaaS: unified inbox, team and company manag
 | Language | TypeScript |
 | Styling | Tailwind CSS, PostCSS, Font Awesome (CDN) |
 | Database | SQLite via [Prisma](https://www.prisma.io/) ORM |
-| Auth | `jsonwebtoken`, `bcryptjs`; token stored client-side as `omni_token` |
+| Auth | `jsonwebtoken`, `bcryptjs`; token stored client-side as `cber_token` |
 | Payments (schema) | Stripe fields on `Company` / `Plan`; `stripe` package is listed for future checkout flows |
 
 ## Features (current app)
@@ -108,7 +108,7 @@ After `npm run db:seed`, you can sign in with accounts such as:
 
 | Email | Password | Role |
 |-------|----------|------|
-| `admin@omniconnect.com` | `admin123` | Super admin |
+| `admin@cberhunt.com` | `admin123` | Super admin |
 | `carlos@techbrasil.com` | `123456` | Company admin (TechBrasil) |
 | `maria@techbrasil.com` | `123456` | Agent |
 

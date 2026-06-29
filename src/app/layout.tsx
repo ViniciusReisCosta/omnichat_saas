@@ -3,7 +3,7 @@ import Providers from '@/components/Providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'OmniConnect - Multichannel Communication Platform',
+  title: 'CberHunt - Multichannel Communication Platform',
   description: 'Manage all your customer communications in one place. WhatsApp, Instagram, Facebook Messenger unified inbox for your business.',
 };
 

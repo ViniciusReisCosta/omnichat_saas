@@ -129,7 +129,7 @@ export default function AboutPage() {
                 We Combine Technology with Communication Excellence
               </h2>
               <p className="text-paragraph mb-4 leading-relaxed">
-                OmniConnect was born from a simple belief: businesses deserve a smarter way to manage
+                CberHunt was born from a simple belief: businesses deserve a smarter way to manage
                 customer conversations. We built a platform that brings WhatsApp, Instagram, Facebook
                 Messenger, and more into a single, intuitive inbox.
               </p>
@@ -251,7 +251,7 @@ export default function AboutPage() {
             Ready to Get Started?
           </h2>
           <p className="text-white/80 max-w-[500px] mx-auto mb-10">
-            Join thousands of companies already using OmniConnect to transform their customer
+            Join thousands of companies already using CberHunt to transform their customer
             communication.
           </p>
           <a href="/register" className="btn-light-fill">

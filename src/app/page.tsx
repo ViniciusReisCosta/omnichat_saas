@@ -88,9 +88,9 @@ const plans = [
 ];
 
 const testimonials = [
-  { name: 'Maria Santos', company: 'TechFlow Inc.', quote: 'OmniConnect transformed how we handle customer support. Response times dropped by 60% and customer satisfaction is at an all-time high.', rating: 5 },
+  { name: 'Maria Santos', company: 'TechFlow Inc.', quote: 'CberHunt transformed how we handle customer support. Response times dropped by 60% and customer satisfaction is at an all-time high.', rating: 5 },
   { name: 'Carlos Rivera', company: 'GrowthHub', quote: 'The unified inbox is a game-changer. Managing WhatsApp and Instagram from one place saved our team hours every day.', rating: 5 },
-  { name: 'Ana Beatriz', company: 'ShopNow Digital', quote: 'We switched from three different tools to OmniConnect and never looked back. The analytics alone are worth the investment.', rating: 5 },
+  { name: 'Ana Beatriz', company: 'ShopNow Digital', quote: 'We switched from three different tools to CberHunt and never looked back. The analytics alone are worth the investment.', rating: 5 },
 ];
 
 export default function HomePage() {
@@ -358,7 +358,7 @@ export default function HomePage() {
                 We Combine Technology with Communication
               </h2>
               <p className="text-paragraph leading-relaxed mb-8">
-                OmniConnect was built by a team obsessed with customer experience. We believe every business
+                CberHunt was built by a team obsessed with customer experience. We believe every business
                 deserves enterprise-level communication tools — without the enterprise price tag. Our platform
                 empowers teams of all sizes to deliver fast, personal, and consistent support across every channel.
               </p>
@@ -528,7 +528,7 @@ export default function HomePage() {
             Ready to Transform Your Customer Communication?
           </h2>
           <p className="text-white/70 text-lg max-w-2xl mx-auto mb-10">
-            Join 2,500+ businesses already using OmniConnect to deliver exceptional customer experiences across every channel.
+            Join 2,500+ businesses already using CberHunt to deliver exceptional customer experiences across every channel.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/register" className="btn-light-fill">

@@ -70,7 +70,7 @@ export default function LoginPage() {
 
                   <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-6 text-sm">
                     <strong>Demo accounts:</strong><br />
-                    Super Admin: admin@omniconnect.com / admin123<br />
+                    Super Admin: admin@cberhunt.com / admin123<br />
                     Company Admin: carlos@techbrasil.com / 123456<br />
                     Agent: maria@techbrasil.com / 123456
                   </div>
