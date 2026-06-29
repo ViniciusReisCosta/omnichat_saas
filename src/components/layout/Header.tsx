@@ -21,7 +21,7 @@ export default function Header() {
         className={`transition-all duration-300 ${
           scrolled
             ? 'bg-white shadow-primary py-3'
-            : 'bg-transparent py-5'
+            : 'bg-white/80 backdrop-blur-md shadow-sm py-5'
         }`}
       >
         <div className="container mx-auto max-w-container px-4 flex items-center justify-between">
@@ -41,7 +41,7 @@ export default function Header() {
                 <Link
                   href={item.href}
                   className={`font-semibold text-[15px] transition-colors duration-300 hover:text-primary ${
-                    scrolled ? 'text-heading' : 'text-white'
+                    'text-heading'
                   }`}
                 >
                   {item.label}
@@ -54,7 +54,7 @@ export default function Header() {
             <Link
               href="/login"
               className={`font-bold text-sm transition-colors duration-300 hover:text-primary ${
-                scrolled ? 'text-heading' : 'text-white'
+                'text-heading'
               }`}
             >
               Login
@@ -70,7 +70,7 @@ export default function Header() {
           >
             <i
               className={`fas ${mobileOpen ? 'fa-times' : 'fa-bars'} ${
-                scrolled ? 'text-heading' : 'text-white'
+                'text-heading'
               }`}
             ></i>
           </button>

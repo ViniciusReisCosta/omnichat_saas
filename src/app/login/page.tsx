@@ -68,13 +68,6 @@ export default function LoginPage() {
                     </div>
                   )}
 
-                  <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-6 text-sm">
-                    <strong>Demo accounts:</strong><br />
-                    Super Admin: admin@cberhunt.com / admin123<br />
-                    Company Admin: carlos@techbrasil.com / 123456<br />
-                    Agent: maria@techbrasil.com / 123456
-                  </div>
-
                   <div className="space-y-4">
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
                     <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
