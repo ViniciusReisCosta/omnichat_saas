@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword, signToken } from '@/lib/auth';
+import { enforceSameOrigin } from '@/lib/access';
+import { getSessionCookieName, getSessionCookieOptions, hashPassword, serializeSessionUser, signToken } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, companyName, companyId } = await req.json();
+    const originError = enforceSameOrigin(req);
+    if (originError) return originError;
+
+    const { name, email, password, companyName } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 });
+    }
+
+    if (!companyName) {
+      return NextResponse.json({ error: 'Company name is required to create your workspace' }, { status: 400 });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -16,24 +24,17 @@ export async function POST(req: NextRequest) {
     }
 
     const hashed = hashPassword(password);
-    let targetCompanyId = companyId;
-    let role = 'agent';
-
-    if (companyName) {
-      const company = await prisma.company.create({
-        data: { name: companyName, email },
-      });
-      targetCompanyId = company.id;
-      role = 'company_admin';
-    }
+    const company = await prisma.company.create({
+      data: { name: companyName, email, active: false, paymentStatus: 'pending' },
+    });
 
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashed,
-        role,
-        companyId: targetCompanyId || null,
+        role: 'company_admin',
+        companyId: company.id,
         online: true,
       },
       include: { company: true },
@@ -41,22 +42,17 @@ export async function POST(req: NextRequest) {
 
     const token = signToken({
       userId: user.id,
-      email: user.email,
       role: user.role,
       companyId: user.companyId,
     });
 
-    return NextResponse.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        companyId: user.companyId,
-        company: user.company ? { id: user.company.id, name: user.company.name, plan: user.company.plan, active: user.company.active } : null,
-      },
+    const response = NextResponse.json({
+      nextStep: user.role === 'super_admin' || user.company?.paymentStatus === 'paid' ? 'dashboard' : 'payment',
+      user: serializeSessionUser(user),
     }, { status: 201 });
+
+    response.cookies.set(getSessionCookieName(), token, getSessionCookieOptions());
+    return response;
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

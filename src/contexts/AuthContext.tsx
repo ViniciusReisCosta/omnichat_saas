@@ -8,14 +8,14 @@ interface Company {
   name: string;
   plan: string;
   active: boolean;
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'canceled';
 }
 
 interface User {
   id: string;
   name: string;
-  email: string;
   role: string;
-  companyId: string | null;
+  hasActiveAccess: boolean;
   company: Company | null;
 }
 
@@ -23,9 +23,17 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: { name: string; email: string; password: string; companyName?: string }) => Promise<void>;
-  logout: () => void;
+  hasActiveAccess: boolean;
+  login: (email: string, password: string) => Promise<AuthResponse>;
+  register: (data: { name: string; email: string; password: string; companyName?: string }) => Promise<AuthResponse>;
+  refreshUser: () => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+interface AuthResponse {
+  user: User;
+  nextStep: 'dashboard' | 'payment';
+  paymentRequired?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,60 +42,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const hasActiveAccess = user?.hasActiveAccess === true;
 
-  useEffect(() => {
-    const token = localStorage.getItem('cber_token');
-    if (!token) {
-      setLoading(false);
-      return;
+  const loadCurrentUser = async () => {
+    const res = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' });
+    if (!res.ok) {
+      setUser(null);
+      throw new Error('Invalid token');
     }
 
-    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => {
-        if (!res.ok) throw new Error('Invalid token');
-        return res.json();
-      })
-      .then((data) => setUser(data))
-      .catch(() => localStorage.removeItem('cber_token'))
+    const data = await res.json();
+    setUser(data);
+  };
+
+  useEffect(() => {
+    loadCurrentUser()
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<AuthResponse> => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ email, password }),
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
 
-    localStorage.setItem('cber_token', data.token);
     setUser(data.user);
+    return data;
   };
 
-  const register = async (formData: { name: string; email: string; password: string; companyName?: string }) => {
+  const register = async (formData: { name: string; email: string; password: string; companyName?: string }): Promise<AuthResponse> => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(formData),
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-    localStorage.setItem('cber_token', data.token);
     setUser(data.user);
+    return data;
   };
 
-  const logout = () => {
-    localStorage.removeItem('cber_token');
-    setUser(null);
-    router.push('/login');
+  const refreshUser = async () => {
+    await loadCurrentUser();
+  };
+
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } finally {
+      setUser(null);
+      router.push('/login');
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, hasActiveAccess: !!hasActiveAccess, login, register, refreshUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

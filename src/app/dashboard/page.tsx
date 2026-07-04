@@ -1,76 +1,146 @@
 'use client';
 
-const stats = [
-  { label: 'Total Companies', value: '127', icon: 'fas fa-building', color: '#1273eb', change: '+12%' },
-  { label: 'Active Agents', value: '843', icon: 'fas fa-users', color: '#10b981', change: '+8%' },
-  { label: 'Messages Today', value: '12,459', icon: 'fas fa-comments', color: '#8b5cf6', change: '+23%' },
-  { label: 'Revenue', value: 'R$ 45,200', icon: 'fas fa-dollar-sign', color: '#f59e0b', change: '+15%' },
-];
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { apiGet } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
-const weeklyData = [
-  { day: 'Mon', height: 60 },
-  { day: 'Tue', height: 80 },
-  { day: 'Wed', height: 45 },
-  { day: 'Thu', height: 90 },
-  { day: 'Fri', height: 70 },
-  { day: 'Sat', height: 40 },
-  { day: 'Sun', height: 55 },
-];
+type DashboardStats = {
+  totalCompanies?: number;
+  totalAgents: number;
+  totalConversations: number;
+  totalMessages: number;
+  conversationsByStatus: Record<string, number>;
+  conversationsByChannel: Record<string, number>;
+  recentConversations: ConversationSummary[];
+  messagesPerDay: { day: string; count: number }[];
+};
 
-const channels = [
-  { name: 'WhatsApp', percent: 45, color: '#25D366' },
-  { name: 'Instagram', percent: 30, color: '#E4405F' },
-  { name: 'Facebook', percent: 25, color: '#1877F2' },
-];
+type ConversationSummary = {
+  id: string;
+  customerName: string;
+  channel: string;
+  status: string;
+  updatedAt: string;
+  agent?: { name: string } | null;
+  company?: { name: string } | null;
+  messages?: { content: string; createdAt: string }[];
+};
 
-const conversations = [
-  { customer: 'Ana Carolina Silva', channel: 'WhatsApp', channelColor: '#25D366', agent: 'João Santos', status: 'open', statusColor: 'bg-emerald-100 text-emerald-700', message: 'Olá, preciso de ajuda com meu pedido...', time: '2 min' },
-  { customer: 'Rafael Oliveira', channel: 'Instagram', channelColor: '#E4405F', agent: 'Maria Costa', status: 'pending', statusColor: 'bg-amber-100 text-amber-700', message: 'Quando vai chegar minha encomenda?', time: '5 min' },
-  { customer: 'Fernanda Lima', channel: 'Facebook', channelColor: '#1877F2', agent: 'Pedro Almeida', status: 'open', statusColor: 'bg-emerald-100 text-emerald-700', message: 'Vocês têm esse produto em estoque?', time: '8 min' },
-  { customer: 'Lucas Mendes', channel: 'WhatsApp', channelColor: '#25D366', agent: 'Ana Beatriz', status: 'closed', statusColor: 'bg-gray-100 text-gray-600', message: 'Obrigado pelo atendimento!', time: '15 min' },
-  { customer: 'Juliana Rocha', channel: 'Instagram', channelColor: '#E4405F', agent: 'João Santos', status: 'open', statusColor: 'bg-emerald-100 text-emerald-700', message: 'Qual o prazo de entrega para SP?', time: '22 min' },
-  { customer: 'Bruno Ferreira', channel: 'WhatsApp', channelColor: '#25D366', agent: 'Maria Costa', status: 'pending', statusColor: 'bg-amber-100 text-amber-700', message: 'Gostaria de fazer uma troca...', time: '30 min' },
-];
-
-const agents = [
-  { name: 'João Santos', online: true, messages: 42 },
-  { name: 'Maria Costa', online: true, messages: 38 },
-  { name: 'Pedro Almeida', online: true, messages: 31 },
-  { name: 'Ana Beatriz', online: false, messages: 0 },
-  { name: 'Carlos Eduardo', online: true, messages: 27 },
-];
+type AgentSummary = {
+  id: string;
+  name: string;
+  online: boolean;
+  _count?: { assignedConversations: number; messages: number };
+};
 
 const quickActions = [
-  { label: 'Add Company', icon: 'fas fa-building', href: '/dashboard/companies' },
-  { label: 'Invite Agent', icon: 'fas fa-user-plus', href: '/dashboard/agents' },
-  { label: 'Connect Channel', icon: 'fas fa-plug', href: '/dashboard/channels' },
-  { label: 'View Reports', icon: 'fas fa-chart-bar', href: '/dashboard' },
+  { label: 'Companies', icon: 'fas fa-building', href: '/dashboard/companies', superAdminOnly: true },
+  { label: 'Agents', icon: 'fas fa-user-plus', href: '/dashboard/agents' },
+  { label: 'Channels', icon: 'fas fa-plug', href: '/dashboard/channels' },
+  { label: 'Inbox', icon: 'fas fa-inbox', href: '/dashboard/inbox' },
 ];
 
+const channelColors: Record<string, string> = {
+  whatsapp: '#25D366',
+  instagram: '#E4405F',
+  facebook: '#1877F2',
+  email: '#6366f1',
+  sms: '#f59e0b',
+};
+
+function formatStatus(status: string) {
+  return status.replace(/_/g, ' ');
+}
+
+function statusClass(status: string) {
+  if (status === 'open') return 'bg-emerald-100 text-emerald-700';
+  if (status === 'pending') return 'bg-amber-100 text-amber-700';
+  if (status === 'closed') return 'bg-gray-100 text-gray-600';
+  return 'bg-blue-100 text-blue-700';
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      apiGet<DashboardStats>('/dashboard/stats'),
+      apiGet<AgentSummary[]>('/agents'),
+    ])
+      .then(([statsData, agentsData]) => {
+        setStats(statsData);
+        setAgents(agentsData);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const channelRows = useMemo(() => {
+    if (!stats) return [];
+    const total = Object.values(stats.conversationsByChannel).reduce((sum, value) => sum + value, 0);
+    return Object.entries(stats.conversationsByChannel).map(([channel, count]) => ({
+      name: channel,
+      count,
+      percent: total > 0 ? Math.round((count / total) * 100) : 0,
+      color: channelColors[channel] || '#1273eb',
+    }));
+  }, [stats]);
+
+  const maxDayCount = Math.max(1, ...(stats?.messagesPerDay.map((item) => item.count) || [1]));
+  const visibleActions = quickActions.filter((action) => !action.superAdminOnly || user?.role === 'super_admin');
+  const onlineAgents = agents.filter((agent) => agent.online).length;
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <i className="fas fa-spinner fa-spin text-primary text-2xl" />
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="bg-white rounded-[10px] shadow-card p-8 text-center">
+        <p className="text-sm text-red-600">{error || 'Dashboard data is unavailable.'}</p>
+      </div>
+    );
+  }
+
+  const cards = [
+    ...(user?.role === 'super_admin'
+      ? [{ label: 'Companies', value: stats.totalCompanies ?? 0, icon: 'fas fa-building', color: '#1273eb' }]
+      : []),
+    { label: 'Agents', value: stats.totalAgents, icon: 'fas fa-users', color: '#10b981' },
+    { label: 'Conversations', value: stats.totalConversations, icon: 'fas fa-inbox', color: '#8b5cf6' },
+    { label: 'Messages', value: stats.totalMessages, icon: 'fas fa-comments', color: '#f59e0b' },
+    { label: 'Online Now', value: onlineAgents, icon: 'fas fa-circle', color: '#22c55e' },
+  ].slice(0, 4);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white rounded-[10px] shadow-card p-6 flex items-center gap-4"
-          >
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${stat.color}15` }}
-            >
+        {cards.map((stat) => (
+          <div key={stat.label} className="bg-white rounded-[10px] shadow-card p-6 flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${stat.color}15` }}>
               <i className={`${stat.icon} text-xl`} style={{ color: stat.color }} />
             </div>
             <div>
-              <h3 className="text-2xl font-heading font-bold text-heading">{stat.value}</h3>
+              <h3 className="text-2xl font-heading font-bold text-heading">{stat.value.toLocaleString('pt-BR')}</h3>
               <p className="text-sm text-paragraph">{stat.label}</p>
-              <span
-                className="text-xs font-semibold"
-                style={{ color: stat.color }}
-              >
-                {stat.change}
-              </span>
             </div>
           </div>
         ))}
@@ -80,15 +150,16 @@ export default function DashboardPage() {
         <div className="bg-white rounded-[10px] shadow-card p-6">
           <h3 className="text-base font-heading font-bold text-heading mb-6">Messages Overview</h3>
           <div className="flex items-end justify-between gap-3 h-48">
-            {weeklyData.map((d) => (
-              <div key={d.day} className="flex flex-col items-center gap-2 flex-1">
+            {stats.messagesPerDay.map((item) => (
+              <div key={`${item.day}-${item.count}`} className="flex flex-col items-center gap-2 flex-1">
                 <div className="w-full relative flex items-end justify-center" style={{ height: 160 }}>
                   <div
                     className="w-full max-w-[40px] bg-primary rounded-t-md transition-all duration-500"
-                    style={{ height: `${d.height}%` }}
+                    style={{ height: `${Math.max(5, (item.count / maxDayCount) * 100)}%` }}
+                    title={`${item.count} messages`}
                   />
                 </div>
-                <span className="text-xs text-paragraph">{d.day}</span>
+                <span className="text-xs text-paragraph">{item.day}</span>
               </div>
             ))}
           </div>
@@ -96,24 +167,25 @@ export default function DashboardPage() {
 
         <div className="bg-white rounded-[10px] shadow-card p-6">
           <h3 className="text-base font-heading font-bold text-heading mb-6">Channel Distribution</h3>
-          <div className="space-y-5">
-            {channels.map((ch) => (
-              <div key={ch.name}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-heading">{ch.name}</span>
-                  <span className="text-sm font-semibold" style={{ color: ch.color }}>
-                    {ch.percent}%
-                  </span>
+          {channelRows.length === 0 ? (
+            <p className="text-sm text-paragraph">No conversations yet.</p>
+          ) : (
+            <div className="space-y-5">
+              {channelRows.map((channel) => (
+                <div key={channel.name}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-heading capitalize">{channel.name}</span>
+                    <span className="text-sm font-semibold" style={{ color: channel.color }}>
+                      {channel.percent}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${channel.percent}%`, backgroundColor: channel.color }} />
+                  </div>
                 </div>
-                <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${ch.percent}%`, backgroundColor: ch.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -130,31 +202,34 @@ export default function DashboardPage() {
                 <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Agent</th>
                 <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Status</th>
                 <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Last Message</th>
-                <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Time</th>
+                <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Updated</th>
               </tr>
             </thead>
             <tbody>
-              {conversations.map((conv, i) => (
-                <tr key={i} className="border-b border-gray-50 hover:bg-[#f8f9fb] transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-heading">{conv.customer}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full text-white"
-                      style={{ backgroundColor: conv.channelColor }}
-                    >
-                      {conv.channel}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-paragraph">{conv.agent}</td>
-                  <td className="px-6 py-4">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${conv.statusColor}`}>
-                      {conv.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-paragraph max-w-[200px] truncate">{conv.message}</td>
-                  <td className="px-6 py-4 text-sm text-paragraph">{conv.time}</td>
+              {stats.recentConversations.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-sm text-paragraph text-center">No conversations yet.</td>
                 </tr>
-              ))}
+              ) : (
+                stats.recentConversations.map((conversation) => (
+                  <tr key={conversation.id} className="border-b border-gray-50 hover:bg-[#f8f9fb] transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-heading">{conversation.customerName}</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full text-white capitalize" style={{ backgroundColor: channelColors[conversation.channel] || '#1273eb' }}>
+                        {conversation.channel}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-paragraph">{conversation.agent?.name || 'Unassigned'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${statusClass(conversation.status)}`}>
+                        {formatStatus(conversation.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-paragraph max-w-[240px] truncate">{conversation.messages?.[0]?.content || 'No messages'}</td>
+                    <td className="px-6 py-4 text-sm text-paragraph">{formatDate(conversation.updatedAt)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -164,50 +239,41 @@ export default function DashboardPage() {
         <div className="bg-white rounded-[10px] shadow-card p-6">
           <h3 className="text-base font-heading font-bold text-heading mb-4">Active Agents</h3>
           <div className="space-y-3">
-            {agents.map((agent) => (
-              <div
-                key={agent.name}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#f8f9fb] transition-colors"
-              >
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-sm font-semibold text-primary">
-                      {agent.name.split(' ').map((n) => n[0]).join('')}
-                    </span>
+            {agents.length === 0 ? (
+              <p className="text-sm text-paragraph">No agents found.</p>
+            ) : (
+              agents.slice(0, 6).map((agent) => (
+                <div key={agent.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#f8f9fb] transition-colors">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-primary">
+                        {agent.name.split(' ').map((name) => name[0]).join('').slice(0, 2)}
+                      </span>
+                    </div>
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${agent.online ? 'bg-emerald-500' : 'bg-gray-300'}`} />
                   </div>
-                  <span
-                    className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                      agent.online ? 'bg-emerald-500' : 'bg-gray-300'
-                    }`}
-                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-heading truncate">{agent.name}</p>
+                    <p className="text-xs text-paragraph">{agent.online ? 'Online' : 'Offline'}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-heading">{agent._count?.assignedConversations ?? 0}</span>
+                  <span className="text-xs text-paragraph">convs</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-heading truncate">{agent.name}</p>
-                  <p className="text-xs text-paragraph">
-                    {agent.online ? 'Online' : 'Offline'}
-                  </p>
-                </div>
-                <span className="text-sm font-semibold text-heading">{agent.messages}</span>
-                <span className="text-xs text-paragraph">msgs</span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         <div className="bg-white rounded-[10px] shadow-card p-6">
           <h3 className="text-base font-heading font-bold text-heading mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
-            {quickActions.map((action) => (
-              <a
-                key={action.label}
-                href={action.href}
-                className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-primary hover:bg-primary/5 transition-all duration-200 group"
-              >
+            {visibleActions.map((action) => (
+              <Link key={action.label} href={action.href} className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-primary hover:bg-primary/5 transition-all duration-200 group">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                   <i className={`${action.icon} text-primary text-lg`} />
                 </div>
                 <span className="text-sm font-medium text-heading">{action.label}</span>
-              </a>
+              </Link>
             ))}
           </div>
         </div>

@@ -7,10 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "db:migrate": "npx prisma migrate dev",
+    "db:deploy": "npx prisma migrate deploy",
     "db:seed": "npx tsx prisma/seed.ts",
+    "db:bootstrap": "npx tsx scripts/bootstrap-production.ts",
     "db:reset": "npx prisma migrate reset --force",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "prod:check-env": "npx tsx scripts/check-production-env.ts",
+    "prod:verify": "npm run prod:check-env && npx prisma validate && npx prisma generate && npm run build"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

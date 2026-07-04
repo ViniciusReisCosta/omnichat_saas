@@ -1,245 +1,113 @@
-# CberHunt — Production Deployment (cbersoftware.com.br)
+# Production Deployment: Railway + Hostinger DNS
 
-Deploys the CberHunt Next.js app to an Ubuntu VPS (`187.77.36.5`) using:
+This project should be deployed as one Next.js application. The frontend and backend API routes are served by the same app and should share the same HTTPS origin.
 
-| Layer | Tool | What it serves |
-|-------|------|----------------|
-| Web app (frontend + API) | **Next.js** under **pm2**, port `3000` | `cbersoftware.com.br`, `www.cbersoftware.com.br` |
-| Database + DB admin | **PostgreSQL 16** + **pgAdmin 4** in **Docker** | pgAdmin at `pgadmin.cbersoftware.com.br` |
-| Reverse proxy + TLS | **nginx** + Let's Encrypt (certbot) | all of the above over HTTPS |
+Recommended setup:
 
-> The app is a single Next.js app — the API lives inside it (`/api/*`) and the frontend calls it same-origin. There is **no separate backend service**, so no `api.` subdomain is used.
+- Railway: hosts the Next.js app and PostgreSQL.
+- Hostinger: manages the domain DNS only.
+- No separate `api.` backend is required for the current architecture.
 
----
+## 1. Railway Services
 
-## 1. DNS records — set these at your domain registrar
+Create a Railway project with:
 
-Point everything at the VPS IP. (No `api.` record needed.)
+- One PostgreSQL database service.
+- One app service connected to this repository.
 
-| Type | Name / Host | Value | TTL |
-|------|-------------|-------|-----|
-| A | `@`  (cbersoftware.com.br) | `187.77.36.5` | 3600 |
-| A | `www` | `187.77.36.5` | 3600 |
-| A | `pgadmin` | `187.77.36.5` | 3600 |
+Configure these variables on the app service:
 
-If your registrar requires a full name instead of `@`, use `cbersoftware.com.br`.
-Wait for propagation before running certbot — verify with:
-
-```bash
-dig +short cbersoftware.com.br
-dig +short www.cbersoftware.com.br
-dig +short pgadmin.cbersoftware.com.br
-# each must return 187.77.36.5
+```env
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+JWT_SECRET=replace-with-a-long-random-secret
+APP_URL=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_STARTER=
+STRIPE_PRICE_PROFESSIONAL=
+STRIPE_PRICE_ENTERPRISE=
 ```
 
----
+Set Stripe variables only when billing checkout/webhooks are active.
 
-## 2. Server prerequisites (run once on the VPS)
+## 2. Build And Start
 
-SSH in as a sudo user, then:
-
-```bash
-# System
-sudo apt update && sudo apt upgrade -y
-
-# Node.js 20 LTS
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# pm2 (global) + nginx + certbot
-sudo npm install -g pm2
-sudo apt install -y nginx
-sudo apt install -y certbot python3-certbot-nginx
-
-# Docker + Docker Compose plugin
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER   # log out/in afterwards so docker runs without sudo
-```
-
-Firewall (if `ufw` is enabled):
+Railway can use the standard npm scripts:
 
 ```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'
-sudo ufw enable
-```
-
----
-
-## 3. Get the code onto the server
-
-```bash
-sudo mkdir -p /var/www && sudo chown $USER:$USER /var/www
-cd /var/www
-git clone <your-repo-url> omnichat_saas
-cd omnichat_saas
-```
-
----
-
-## 4. Configure environment
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-Fill in **real** values. Generate strong secrets:
-
-```bash
-openssl rand -base64 48   # use for JWT_SECRET
-openssl rand -base64 24   # use for POSTGRES_PASSWORD (also update DATABASE_URL to match!)
-```
-
-> ⚠️ `POSTGRES_PASSWORD` and the password inside `DATABASE_URL` **must be identical**.
-> Set `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` — that is your pgAdmin login.
-
----
-
-## 5. Start the database (Docker)
-
-```bash
-docker compose up -d
-docker compose ps        # postgres = healthy, pgadmin = running
-```
-
-This launches PostgreSQL (bound to `127.0.0.1:5432`) and pgAdmin (bound to `127.0.0.1:5050`).
-Both are localhost-only; the public reaches pgAdmin through nginx + HTTPS.
-
----
-
-## 6. Build & launch the app (pm2)
-
-The helper script installs deps, runs Prisma migration + seed, builds, and starts pm2:
-
-```bash
-./deploy/deploy.sh
-```
-
-<details>
-<summary>What that script runs (equivalent manual steps)</summary>
-
-```bash
-npm ci --include=dev
-npx prisma generate
-npx prisma migrate dev --name init --skip-seed   # first time (creates the Postgres migration)
-npm run db:seed
+npm install
 npm run build
-pm2 start ecosystem.config.js --env production
-pm2 save
+npm run start
 ```
-</details>
 
-Make pm2 start on boot:
+`npm install` runs `postinstall`, which generates the Prisma Client for the Railway environment.
+
+If Railway asks for explicit commands:
 
 ```bash
-pm2 startup systemd        # run the command it prints
-pm2 save
+# Build command
+npm run build
+
+# Start command
+npm run start
 ```
 
-Verify the app locally:
+## 3. Database Migrations
+
+Apply migrations to production with:
 
 ```bash
-curl -I http://127.0.0.1:3000     # expect HTTP/1.1 200
+npm run db:deploy
+npm run db:bootstrap
 ```
 
----
-
-## 7. nginx reverse proxy
-
-# NOTE: this server's nginx includes only `sites-enabled/*.conf`, so the
-# vhost filenames MUST end in `.conf` (a CloudPanel default.conf catch-all
-# returns 444 for any host that doesn't match a loaded server block).
-
-# Main site (cbersoftware.com.br + www)
-sudo cp deploy/nginx/cbersoftware.com.br.conf /etc/nginx/sites-available/cbersoftware.com.br.conf
-sudo ln -sf /etc/nginx/sites-available/cbersoftware.com.br.conf /etc/nginx/sites-enabled/
-
-# pgAdmin
-sudo cp deploy/nginx/pgadmin.cbersoftware.com.br.conf /etc/nginx/sites-available/pgadmin.cbersoftware.com.br.conf
-sudo ln -sf /etc/nginx/sites-available/pgadmin.cbersoftware.com.br.conf /etc/nginx/sites-enabled/
-
-sudo nginx -t && sudo systemctl reload nginx
-```
-
----
-
-## 8. HTTPS (Let's Encrypt)
-
-After DNS has propagated (step 1), let certbot obtain certs and rewrite the nginx
-configs to HTTPS automatically:
+Do not run:
 
 ```bash
-sudo certbot --nginx \
-  -d cbersoftware.com.br -d www.cbersoftware.com.br \
-  -d pgadmin.cbersoftware.com.br \
-  --redirect --agree-tos -m admin@cbersoftware.com.br --no-eff-email
-
-sudo systemctl reload nginx
+npm run db:seed
 ```
 
-Auto-renewal is installed by default; test it with:
+The seed script deletes and recreates demo data. It is only for local development or disposable staging environments. Use `db:bootstrap` in production because it upserts required plans without deleting existing data.
+
+## 4. Hostinger DNS
+
+In Hostinger, point the production domain to Railway using the DNS target Railway gives you for the custom domain.
+
+Typical flow:
+
+1. Add the custom domain in Railway for the app service.
+2. Railway provides the DNS record to create.
+3. Add that DNS record in Hostinger.
+4. Wait for DNS propagation.
+5. Set `APP_URL` and `NEXT_PUBLIC_APP_URL` to the final HTTPS domain in Railway.
+
+Keep frontend and API on the same domain. The app uses HTTP-only cookies and same-origin API calls.
+
+## 5. Verification
+
+After deploy:
 
 ```bash
-sudo certbot renew --dry-run
+npm run db:deploy
 ```
 
----
+Then verify:
 
-## 9. Verify
+- `https://your-domain.com` loads the marketing site.
+- `/register` creates a company and user in PostgreSQL.
+- `/login` creates the `cber_session` cookie.
+- `/dashboard` reads real database data.
+- `/api/plans` returns plan records.
+- Stripe checkout plans have real `stripePriceId` values if billing is enabled.
+- Stripe webhook URL, if enabled, is `https://your-domain.com/api/payments/webhook`.
 
-- https://cbersoftware.com.br  → app loads (and `www` redirects/works)
-- https://pgadmin.cbersoftware.com.br → pgAdmin login (use `PGADMIN_DEFAULT_EMAIL` / password)
+## 6. VPS Script
 
-**Connect pgAdmin to your database** (first login → *Add New Server*):
-
-| Field | Value |
-|-------|-------|
-| Name | CberHunt |
-| Host name/address | `cberhunt_postgres` (the container name — pgAdmin shares the Docker network) |
-| Port | `5432` |
-| Maintenance DB | `omniconnect` (your `POSTGRES_DB`) |
-| Username | `omniconnect` (your `POSTGRES_USER`) |
-| Password | your `POSTGRES_PASSWORD` |
-
-> Use the host `cberhunt_postgres`, not `localhost` — inside the pgAdmin container, `localhost` is pgAdmin itself.
-
-**Demo logins** (from the seed): `admin@cberhunt.com` / `admin123`.
-
----
-
-## Day-2 operations
+`deploy/deploy.sh` remains available for a VPS/pm2 deployment. It now skips seed by default. To seed an empty disposable environment, run:
 
 ```bash
-# Update / redeploy after pushing new code
-cd /var/www/omnichat_saas && ./deploy/deploy.sh
-
-# App logs / status
-pm2 status
-pm2 logs cberhunt
-
-# Database containers
-docker compose ps
-docker compose logs -f postgres
-docker compose restart pgadmin
-
-# Database backup
-docker exec -t cberhunt_postgres pg_dump -U omniconnect omniconnect > backup_$(date +%F).sql
-
-# Restore
-cat backup_YYYY-MM-DD.sql | docker exec -i cberhunt_postgres psql -U omniconnect -d omniconnect
+RUN_SEED=true ./deploy/deploy.sh
 ```
 
----
-
-## Architecture summary
-
-```
-                        ┌───────────────── Ubuntu VPS 187.77.36.5 ─────────────────┐
-  Internet  ── 80/443 ──►  nginx (TLS via Let's Encrypt)                            │
-                        │     ├─ cbersoftware.com.br / www  ──► 127.0.0.1:3000  (Next.js, pm2)
-                        │     └─ pgadmin.cbersoftware.com.br ──► 127.0.0.1:5050  (pgAdmin, Docker)
-                        │                                                          │
-                        │   Next.js (pm2) ──► 127.0.0.1:5432 ──► PostgreSQL (Docker)
-                        └───────────────────────────────────────────────────────────┘
-```
+Do not use `RUN_SEED=true` against production data.

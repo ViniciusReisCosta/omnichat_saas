@@ -4,6 +4,18 @@ import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useState, useEffect, useRef } from 'react';
+import { apiGet } from '@/lib/api';
+
+type HomePlan = {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  maxAgents: number;
+  maxChannels: number;
+  maxMessages: number;
+  features: string;
+};
 
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
   const [count, setCount] = useState(0);
@@ -66,34 +78,36 @@ const steps = [
   { icon: 'fa-rocket', title: 'Grow Your Business', desc: 'Deliver faster responses, happier customers, and scale your support as your business grows.' },
 ];
 
-const plans = [
-  {
-    name: 'Starter',
-    price: 29,
-    features: ['3 Channels', '2 Team Members', '1,000 Conversations/mo', 'Basic Analytics', 'Email Support', 'Canned Responses'],
-    highlighted: false,
-  },
-  {
-    name: 'Professional',
-    price: 79,
-    features: ['Unlimited Channels', '10 Team Members', '10,000 Conversations/mo', 'Advanced Analytics', 'Priority Support', 'Chatbot Builder', 'API Access'],
-    highlighted: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 199,
-    features: ['Unlimited Everything', 'Unlimited Team Members', 'Unlimited Conversations', 'Custom Analytics', 'Dedicated Account Manager', 'Custom Integrations', 'SLA Guarantee', 'On-Premise Option'],
-    highlighted: false,
-  },
-];
-
 const testimonials = [
   { name: 'Maria Santos', company: 'TechFlow Inc.', quote: 'CberHunt transformed how we handle customer support. Response times dropped by 60% and customer satisfaction is at an all-time high.', rating: 5 },
   { name: 'Carlos Rivera', company: 'GrowthHub', quote: 'The unified inbox is a game-changer. Managing WhatsApp and Instagram from one place saved our team hours every day.', rating: 5 },
   { name: 'Ana Beatriz', company: 'ShopNow Digital', quote: 'We switched from three different tools to CberHunt and never looked back. The analytics alone are worth the investment.', rating: 5 },
 ];
 
+function parsePlanFeatures(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return value ? [value] : [];
+  }
+}
+
 export default function HomePage() {
+  const [plans, setPlans] = useState<HomePlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+
+  useEffect(() => {
+    apiGet<HomePlan[]>('/plans')
+      .then(setPlans)
+      .catch(() => setPlans([]))
+      .finally(() => setLoadingPlans(false));
+  }, []);
+
+  const highlightedSlug = plans.some((plan) => plan.slug === 'professional')
+    ? 'professional'
+    : plans[Math.floor(plans.length / 2)]?.slug;
+
   return (
     <>
       <Header />
@@ -425,55 +439,66 @@ export default function HomePage() {
               Flexible pricing that scales with your business. All plans include a 14-day free trial.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 items-stretch">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-card p-8 transition-all duration-300 hover:-translate-y-2 relative ${
-                  plan.highlighted
-                    ? 'bg-primary text-white shadow-extra scale-[1.03]'
-                    : 'card-shadow'
-                }`}
-              >
-                {plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 rounded-pill text-white text-xs font-bold"
-                    style={{ background: 'linear-gradient(45deg, #ee2852 0%, #1273eb 100%)' }}
-                  >
-                    Most Popular
-                  </div>
-                )}
-                <div className="text-center mb-8">
-                  <h4 className={`text-xl font-extrabold font-heading mb-4 ${plan.highlighted ? 'text-white' : ''}`}>
-                    {plan.name}
-                  </h4>
-                  <div className="flex items-end justify-center gap-1">
-                    <span className={`text-5xl font-extrabold font-heading ${plan.highlighted ? 'text-white' : 'gradient-text'}`}>
-                      ${plan.price}
-                    </span>
-                    <span className={`text-sm mb-2 ${plan.highlighted ? 'text-white/70' : 'text-paragraph'}`}>/month</span>
-                  </div>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  {plan.features.map((feat) => (
-                    <li key={feat} className="flex items-center gap-3">
-                      <i className={`fas fa-check-circle ${plan.highlighted ? 'text-white/80' : 'text-primary'}`}></i>
-                      <span className={plan.highlighted ? 'text-white/90' : 'text-paragraph'}>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="text-center mt-auto">
-                  <Link
-                    href="/register"
-                    className={`w-full block text-center ${
-                      plan.highlighted ? 'btn-light-fill' : 'btn-primary-outline'
+          {loadingPlans ? (
+            <div className="card-shadow p-10 text-center text-paragraph">
+              Loading plans...
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="card-shadow p-10 text-center text-paragraph">
+              No plans are configured yet.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8 items-stretch">
+              {plans.map((plan) => {
+                const highlighted = plan.slug === highlightedSlug;
+                const features = parsePlanFeatures(plan.features);
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`rounded-card p-8 transition-all duration-300 hover:-translate-y-2 relative ${
+                      highlighted ? 'bg-primary text-white shadow-extra scale-[1.03]' : 'card-shadow'
                     }`}
                   >
-                    Get Started
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+                    {highlighted && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 rounded-pill text-white text-xs font-bold"
+                        style={{ background: 'linear-gradient(45deg, #ee2852 0%, #1273eb 100%)' }}
+                      >
+                        Most Popular
+                      </div>
+                    )}
+                    <div className="text-center mb-8">
+                      <h4 className={`text-xl font-extrabold font-heading mb-4 ${highlighted ? 'text-white' : ''}`}>
+                        {plan.name}
+                      </h4>
+                      <div className="flex items-end justify-center gap-1">
+                        <span className={`text-5xl font-extrabold font-heading ${highlighted ? 'text-white' : 'gradient-text'}`}>
+                          R$ {plan.price.toLocaleString('pt-BR')}
+                        </span>
+                        <span className={`text-sm mb-2 ${highlighted ? 'text-white/70' : 'text-paragraph'}`}>/month</span>
+                      </div>
+                    </div>
+                    <ul className="space-y-4 mb-8">
+                      {features.map((feat) => (
+                        <li key={feat} className="flex items-center gap-3">
+                          <i className={`fas fa-check-circle ${highlighted ? 'text-white/80' : 'text-primary'}`}></i>
+                          <span className={highlighted ? 'text-white/90' : 'text-paragraph'}>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="text-center mt-auto">
+                      <Link
+                        href={`/register?plan=${plan.slug}`}
+                        className={`w-full block text-center ${highlighted ? 'btn-light-fill' : 'btn-primary-outline'}`}
+                      >
+                        Get Started
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

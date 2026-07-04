@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserFromRequest } from '@/lib/auth';
+import { requireAccess } from '@/lib/access';
 
 export async function GET(req: NextRequest) {
   try {
-    const user = getUserFromRequest(req);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const access = await requireAccess(req);
+    if ('error' in access) return access.error;
+    const { user } = access;
 
     if (user.role === 'super_admin') {
       const [companies, agents, conversations, messages] = await Promise.all([
@@ -21,7 +22,15 @@ export async function GET(req: NextRequest) {
       const recent = await prisma.conversation.findMany({
         take: 10,
         orderBy: { updatedAt: 'desc' },
-        include: { agent: { select: { name: true } }, company: { select: { name: true } } },
+        include: {
+          agent: { select: { name: true } },
+          company: { select: { name: true } },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            select: { content: true, createdAt: true },
+          },
+        },
       });
 
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
@@ -65,7 +74,14 @@ export async function GET(req: NextRequest) {
       where: { companyId },
       take: 10,
       orderBy: { updatedAt: 'desc' },
-      include: { agent: { select: { name: true } } },
+      include: {
+        agent: { select: { name: true } },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: { content: true, createdAt: true },
+        },
+      },
     });
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);

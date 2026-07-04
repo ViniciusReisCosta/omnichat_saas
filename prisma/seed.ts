@@ -38,6 +38,7 @@ async function main() {
       address: 'Av. Paulista, 1000 - São Paulo, SP',
       plan: 'professional',
       active: true,
+      paymentStatus: 'paid',
       welcomeMessage: 'Olá! Bem-vindo à TechBrasil. Como posso ajudá-lo?',
     },
   });
@@ -50,6 +51,7 @@ async function main() {
       address: 'Rua das Flores, 250 - Rio de Janeiro, RJ',
       plan: 'starter',
       active: true,
+      paymentStatus: 'paid',
     },
   });
 
@@ -61,7 +63,7 @@ async function main() {
       address: 'Belo Horizonte, MG',
       plan: 'enterprise',
       active: false,
-      paymentStatus: 'overdue',
+      paymentStatus: 'failed',
     },
   });
 

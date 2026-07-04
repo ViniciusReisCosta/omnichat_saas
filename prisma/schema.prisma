@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  canceled
+}
+
 model Company {
   id                   String         @id @default(cuid())
   name                 String
@@ -14,10 +21,10 @@ model Company {
   phone                String?
   address              String?
   plan                 String         @default("starter")
-  active               Boolean        @default(true)
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
-  paymentStatus        String         @default("active")
+  active               Boolean        @default(false)
+  stripeCustomerId     String?        @unique
+  stripeSubscriptionId String?        @unique
+  paymentStatus        PaymentStatus  @default(pending)
   businessHoursStart   String         @default("08:00")
   businessHoursEnd     String         @default("18:00")
   welcomeMessage       String         @default("Olá! Como posso ajudá-lo?")

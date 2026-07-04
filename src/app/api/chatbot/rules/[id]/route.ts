@@ -8,30 +8,31 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if ('error' in access) return access.error;
     const { user } = access;
 
-    const existing = await prisma.channel.findUnique({
+    const existing = await prisma.chatbotRule.findUnique({
       where: { id: params.id },
       select: { companyId: true },
     });
+
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const forbidden = ensureCompanyAccess(user, existing.companyId);
     if (forbidden) return forbidden;
 
-    const data = await req.json();
-    const updateData: Record<string, unknown> = {};
-    if (typeof data.name === 'string') updateData.name = data.name;
-    if (typeof data.accountId === 'string' || data.accountId === null) updateData.accountId = data.accountId;
-    if (typeof data.accessToken === 'string' || data.accessToken === null) updateData.accessToken = data.accessToken;
-    if (typeof data.connected === 'boolean') updateData.connected = data.connected;
+    const body = await req.json();
+    const data: Record<string, unknown> = {};
+    if (typeof body.keyword === 'string') data.keyword = body.keyword.trim();
+    if (typeof body.response === 'string') data.response = body.response.trim();
+    if (typeof body.active === 'boolean') data.active = body.active;
 
-    const channel = await prisma.channel.update({
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: 'No allowed fields provided' }, { status: 400 });
+    }
+
+    const rule = await prisma.chatbotRule.update({
       where: { id: params.id },
-      data: updateData,
-      include: {
-        company: { select: { id: true, name: true } },
-        _count: { select: { conversations: true } },
-      },
+      data,
     });
-    return NextResponse.json(channel);
+
+    return NextResponse.json(rule);
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -43,15 +44,16 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if ('error' in access) return access.error;
     const { user } = access;
 
-    const existing = await prisma.channel.findUnique({
+    const existing = await prisma.chatbotRule.findUnique({
       where: { id: params.id },
       select: { companyId: true },
     });
+
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const forbidden = ensureCompanyAccess(user, existing.companyId);
     if (forbidden) return forbidden;
 
-    await prisma.channel.delete({ where: { id: params.id } });
+    await prisma.chatbotRule.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserFromRequest } from '@/lib/auth';
+import { requireAccess } from '@/lib/access';
 import { assignConversation } from '@/lib/assignment';
 
 export async function GET(req: NextRequest) {
@@ -9,7 +9,9 @@ export async function GET(req: NextRequest) {
   const channel = searchParams.get('channel');
   const search = searchParams.get('search');
 
-  const user = getUserFromRequest(req);
+  const access = await requireAccess(req);
+  if ('error' in access) return access.error;
+  const { user } = access;
 
   const where: Record<string, unknown> = {};
   if (user?.companyId) where.companyId = user.companyId;
@@ -20,7 +22,7 @@ export async function GET(req: NextRequest) {
   const conversations = await prisma.conversation.findMany({
     where,
     include: {
-      agent: { select: { id: true, name: true, email: true, role: true } },
+      agent: { select: { id: true, name: true, role: true } },
       messages: {
         orderBy: { createdAt: 'desc' as const },
         take: 1,
@@ -34,6 +36,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const access = await requireAccess(req);
+  if ('error' in access) return access.error;
+  const { user } = access;
+
   const body = await req.json();
   const { customerName, channel, customerPhone, customerEmail } = body;
 
@@ -41,16 +47,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'customerName and channel are required' }, { status: 400 });
   }
 
-  const user = getUserFromRequest(req);
-  let companyId = user?.companyId;
-
-  if (!companyId) {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      return NextResponse.json({ error: 'No company found' }, { status: 400 });
-    }
-    companyId = company.id;
-  }
+  const companyId = user.companyId;
+  if (!companyId) return NextResponse.json({ error: 'No company available' }, { status: 400 });
 
   const agentId = await assignConversation(companyId);
 
@@ -64,7 +62,7 @@ export async function POST(req: NextRequest) {
       agentId,
     },
     include: {
-      agent: { select: { id: true, name: true, email: true, role: true } },
+      agent: { select: { id: true, name: true, role: true } },
       messages: true,
     },
   });

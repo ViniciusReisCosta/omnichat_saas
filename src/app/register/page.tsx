@@ -9,7 +9,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
-  const { register, isAuthenticated, loading: authLoading } = useAuth();
+  const { register, isAuthenticated, loading: authLoading, hasActiveAccess } = useAuth();
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -20,8 +20,10 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) router.push('/dashboard');
-  }, [isAuthenticated, authLoading, router]);
+    if (!authLoading && isAuthenticated) {
+      router.push(hasActiveAccess ? '/dashboard' : '/billing');
+    }
+  }, [isAuthenticated, authLoading, router, hasActiveAccess]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,8 +40,8 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register({ name, email, password, companyName: companyName || undefined });
-      router.push('/dashboard');
+      const result = await register({ name, email, password, companyName: companyName || undefined });
+      router.push(result.nextStep === 'dashboard' ? '/dashboard' : '/billing');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -84,7 +86,7 @@ export default function RegisterPage() {
                   <div className="space-y-4">
                     <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
-                    <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Company Name (creates new company)" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                    <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Company Name*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
                     <div className="grid grid-cols-2 gap-4">
                       <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
                       <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm Password*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />

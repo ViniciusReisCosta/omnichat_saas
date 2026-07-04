@@ -1,324 +1,174 @@
 'use client';
 
-import { useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { apiGet, apiPut } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+
+type CompanySettings = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  address?: string | null;
+  plan: string;
+  active: boolean;
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'canceled';
+  businessHoursStart: string;
+  businessHoursEnd: string;
+  welcomeMessage: string;
+  _count?: {
+    users: number;
+    conversations: number;
+    channels: number;
+  };
+};
+
+type Plan = {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  maxAgents: number;
+  maxChannels: number;
+  maxMessages: number;
+};
 
 const tabs = ['General', 'Notifications', 'Billing', 'API'];
 
-const businessHours = [
-  { day: 'Monday', enabled: true, start: '09:00', end: '18:00' },
-  { day: 'Tuesday', enabled: true, start: '09:00', end: '18:00' },
-  { day: 'Wednesday', enabled: true, start: '09:00', end: '18:00' },
-  { day: 'Thursday', enabled: true, start: '09:00', end: '18:00' },
-  { day: 'Friday', enabled: true, start: '09:00', end: '18:00' },
-  { day: 'Saturday', enabled: false, start: '09:00', end: '13:00' },
-  { day: 'Sunday', enabled: false, start: '', end: '' },
-];
+const emptyCompany: CompanySettings = {
+  id: '',
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  plan: 'starter',
+  active: false,
+  paymentStatus: 'pending',
+  businessHoursStart: '08:00',
+  businessHoursEnd: '18:00',
+  welcomeMessage: '',
+};
 
-const notifications = [
-  { label: 'Email notifications', description: 'Receive email for important updates', enabled: true },
-  { label: 'Push notifications', description: 'Browser push notifications', enabled: true },
-  { label: 'New message alerts', description: 'Alert when new messages arrive', enabled: true },
-  { label: 'Assignment alerts', description: 'Notify when conversations are assigned', enabled: false },
-  { label: 'Payment reminders', description: 'Billing and payment due notifications', enabled: true },
-];
-
-const billingHistory = [
-  { date: '01/04/2025', description: 'Enterprise Plan - Monthly', amount: 'R$ 899,00', status: 'Paid' },
-  { date: '01/03/2025', description: 'Enterprise Plan - Monthly', amount: 'R$ 899,00', status: 'Paid' },
-  { date: '01/02/2025', description: 'Enterprise Plan - Monthly', amount: 'R$ 899,00', status: 'Paid' },
-  { date: '15/01/2025', description: 'Additional Agents (5)', amount: 'R$ 245,00', status: 'Paid' },
-  { date: '01/01/2025', description: 'Enterprise Plan - Monthly', amount: 'R$ 899,00', status: 'Paid' },
-];
-
-function Toggle({ enabled }: { enabled: boolean }) {
-  const [on, setOn] = useState(enabled);
+function Toggle({ enabled, disabled = false }: { enabled: boolean; disabled?: boolean }) {
   return (
     <button
-      onClick={() => setOn(!on)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-        on ? 'bg-primary' : 'bg-gray-300'
-      }`}
+      type="button"
+      disabled={disabled}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 disabled:opacity-50 ${enabled ? 'bg-primary' : 'bg-gray-300'}`}
     >
-      <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-          on ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
+      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
   );
 }
 
-function GeneralTab() {
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-[10px] shadow-card p-6">
-        <h3 className="text-base font-heading font-bold text-heading mb-5">Company Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-heading mb-1.5">Company Name</label>
-            <input
-              type="text"
-              defaultValue="CberHunt Brasil"
-              className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-heading mb-1.5">Email</label>
-            <input
-              type="email"
-              defaultValue="admin@cberhunt.com.br"
-              className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-heading mb-1.5">Phone</label>
-            <input
-              type="tel"
-              defaultValue="+55 (11) 3456-7890"
-              className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-heading mb-1.5">Address</label>
-            <textarea
-              defaultValue="Av. Paulista, 1234 - Bela Vista, São Paulo - SP, 01310-100"
-              rows={3}
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm text-heading resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-        </div>
-        <div className="mt-5 flex justify-end">
-          <button className="px-8 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-            Save Changes
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[10px] shadow-card p-6">
-        <h3 className="text-base font-heading font-bold text-heading mb-5">Business Hours</h3>
-        <div className="space-y-3">
-          {businessHours.map((bh) => (
-            <div key={bh.day} className="flex items-center gap-4 py-2">
-              <div className="w-28">
-                <span className="text-sm font-medium text-heading">{bh.day}</span>
-              </div>
-              <Toggle enabled={bh.enabled} />
-              {bh.enabled ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    defaultValue={bh.start}
-                    className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                  <span className="text-sm text-paragraph">to</span>
-                  <input
-                    type="time"
-                    defaultValue={bh.end}
-                    className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                </div>
-              ) : (
-                <span className="text-sm text-paragraph">Closed</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NotificationsTab() {
-  return (
-    <div className="bg-white rounded-[10px] shadow-card p-6">
-      <h3 className="text-base font-heading font-bold text-heading mb-5">Notification Preferences</h3>
-      <div className="space-y-1">
-        {notifications.map((n) => (
-          <div key={n.label} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
-            <div>
-              <p className="text-sm font-medium text-heading">{n.label}</p>
-              <p className="text-xs text-paragraph mt-0.5">{n.description}</p>
-            </div>
-            <Toggle enabled={n.enabled} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BillingTab() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-[10px] shadow-card p-6">
-          <h3 className="text-base font-heading font-bold text-heading mb-4">Current Plan</h3>
-          <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-3xl font-heading font-bold text-heading">R$ 899</span>
-            <span className="text-sm text-paragraph">/month</span>
-          </div>
-          <span className="inline-block text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary mb-4">
-            Enterprise
-          </span>
-          <p className="text-sm text-paragraph mb-5">Renewal date: May 1, 2025</p>
-          <button className="w-full h-11 text-sm font-semibold text-primary border-2 border-primary rounded-lg hover:bg-primary hover:text-white transition-all duration-200">
-            Upgrade Plan
-          </button>
-        </div>
-
-        <div className="bg-white rounded-[10px] shadow-card p-6">
-          <h3 className="text-base font-heading font-bold text-heading mb-4">Payment Method</h3>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-8 rounded bg-gray-100 flex items-center justify-center">
-              <i className="fab fa-cc-visa text-xl text-[#1a1f71]" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-heading">**** **** **** 4242</p>
-              <p className="text-xs text-paragraph">Expires 12/2026</p>
-            </div>
-          </div>
-          <button className="w-full h-11 text-sm font-semibold text-heading border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            Update Payment Method
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[10px] shadow-card">
-        <div className="p-6 border-b border-gray-100">
-          <h3 className="text-base font-heading font-bold text-heading">Billing History</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-[#f8f9fb]">
-                <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Date</th>
-                <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Description</th>
-                <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Amount</th>
-                <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-paragraph uppercase tracking-wider px-6 py-3">Invoice</th>
-              </tr>
-            </thead>
-            <tbody>
-              {billingHistory.map((item, i) => (
-                <tr key={i} className="border-b border-gray-50 hover:bg-[#f8f9fb] transition-colors">
-                  <td className="px-6 py-4 text-sm text-paragraph">{item.date}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-heading">{item.description}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-heading">{item.amount}</td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="text-primary text-sm font-medium hover:underline">
-                      <i className="fas fa-download mr-1 text-xs" />
-                      PDF
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function APITab() {
-  const [showKey, setShowKey] = useState(false);
-  const apiKey = 'sk_live_cber_7f3a9b2c4d5e6f1a8b9c0d1e2f3a4b5c';
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-[10px] shadow-card p-6">
-        <h3 className="text-base font-heading font-bold text-heading mb-5">API Key</h3>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-11 px-4 rounded-lg bg-[#f0f2f5] flex items-center">
-            <code className="text-sm text-heading">
-              {showKey ? apiKey : '••••••••••••••••••••••••••••••••••••'}
-            </code>
-          </div>
-          <button
-            onClick={() => setShowKey(!showKey)}
-            className="h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading hover:bg-gray-50 transition-colors"
-          >
-            <i className={`fas ${showKey ? 'fa-eye-slash' : 'fa-eye'} mr-2 text-xs`} />
-            {showKey ? 'Hide' : 'Show'}
-          </button>
-          <button
-            onClick={() => navigator.clipboard?.writeText(apiKey)}
-            className="h-11 px-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
-          >
-            <i className="fas fa-copy mr-2 text-xs" />
-            Copy
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[10px] shadow-card p-6">
-        <h3 className="text-base font-heading font-bold text-heading mb-5">Webhook URL</h3>
-        <div className="flex items-center gap-3">
-          <input
-            type="url"
-            defaultValue="https://api.cberhunt.com.br/webhooks/v1"
-            className="flex-1 h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-          <button className="h-11 px-6 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-            Save
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[10px] shadow-card p-6">
-        <h3 className="text-base font-heading font-bold text-heading mb-5">API Usage</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="p-4 rounded-xl bg-[#f0f2f5]">
-            <p className="text-xs text-paragraph mb-1">Requests Today</p>
-            <p className="text-2xl font-heading font-bold text-heading">3,247</p>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full mt-3 overflow-hidden">
-              <div className="h-full bg-primary rounded-full" style={{ width: '32%' }} />
-            </div>
-            <p className="text-xs text-paragraph mt-1">32% of daily limit</p>
-          </div>
-          <div className="p-4 rounded-xl bg-[#f0f2f5]">
-            <p className="text-xs text-paragraph mb-1">Requests This Month</p>
-            <p className="text-2xl font-heading font-bold text-heading">87,412</p>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full mt-3 overflow-hidden">
-              <div className="h-full bg-emerald-500 rounded-full" style={{ width: '58%' }} />
-            </div>
-            <p className="text-xs text-paragraph mt-1">58% of monthly limit</p>
-          </div>
-          <div className="p-4 rounded-xl bg-[#f0f2f5]">
-            <p className="text-xs text-paragraph mb-1">Avg Response Time</p>
-            <p className="text-2xl font-heading font-bold text-heading">142ms</p>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full mt-3 overflow-hidden">
-              <div className="h-full bg-amber-500 rounded-full" style={{ width: '14%' }} />
-            </div>
-            <p className="text-xs text-paragraph mt-1">Excellent</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function normalizePlanName(plan: string) {
+  return plan.charAt(0).toUpperCase() + plan.slice(1);
 }
 
 export default function SettingsPage() {
+  const { user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('General');
+  const [company, setCompany] = useState<CompanySettings | null>(null);
+  const [form, setForm] = useState<CompanySettings>(emptyCompany);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [appOrigin, setAppOrigin] = useState('');
+
+  const canEditCompany = user?.role === 'company_admin' || user?.role === 'super_admin';
+
+  useEffect(() => {
+    setAppOrigin(window.location.origin);
+  }, []);
+
+  useEffect(() => {
+    const companyId = user?.company?.id;
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
+
+    Promise.all([
+      apiGet<CompanySettings>(`/companies/${companyId}`),
+      apiGet<Plan[]>('/plans'),
+    ])
+      .then(([companyData, planData]) => {
+        setCompany(companyData);
+        setForm({ ...emptyCompany, ...companyData });
+        setPlans(planData);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load settings'))
+      .finally(() => setLoading(false));
+  }, [user?.company?.id]);
+
+  const currentPlan = useMemo(() => plans.find((plan) => plan.slug === company?.plan), [company?.plan, plans]);
+
+  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!company) return;
+
+    setSaving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const updated = await apiPut<CompanySettings>(`/companies/${company.id}`, {
+        name: form.name,
+        email: form.email,
+        phone: form.phone || null,
+        address: form.address || null,
+        businessHoursStart: form.businessHoursStart,
+        businessHoursEnd: form.businessHoursEnd,
+        welcomeMessage: form.welcomeMessage,
+      });
+      setCompany(updated);
+      setForm({ ...emptyCompany, ...updated });
+      setSuccess('Settings saved.');
+      await refreshUser().catch(() => undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <i className="fas fa-spinner fa-spin text-primary text-2xl" />
+      </div>
+    );
+  }
+
+  if (!user?.company) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-xl font-heading font-bold text-heading">Settings</h2>
+        <div className="bg-white rounded-[10px] shadow-card p-8 text-sm text-paragraph">
+          No company workspace is associated with this account.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-heading font-bold text-heading">Settings</h2>
 
-      <div className="flex items-center gap-1 bg-white rounded-[10px] shadow-card p-1.5">
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
+
+      <div className="flex items-center gap-1 bg-white rounded-[10px] shadow-card p-1.5 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab}
+            type="button"
             onClick={() => setActiveTab(tab)}
             className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-              activeTab === tab
-                ? 'bg-primary text-white'
-                : 'text-paragraph hover:text-heading hover:bg-gray-50'
+              activeTab === tab ? 'bg-primary text-white' : 'text-paragraph hover:text-heading hover:bg-gray-50'
             }`}
           >
             {tab}
@@ -326,10 +176,186 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {activeTab === 'General' && <GeneralTab />}
-      {activeTab === 'Notifications' && <NotificationsTab />}
-      {activeTab === 'Billing' && <BillingTab />}
-      {activeTab === 'API' && <APITab />}
+      {activeTab === 'General' && (
+        <form onSubmit={handleSave} className="space-y-6">
+          <div className="bg-white rounded-[10px] shadow-card p-6">
+            <h3 className="text-base font-heading font-bold text-heading mb-5">Company Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-heading mb-1.5">Company Name</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                  disabled={!canEditCompany}
+                  className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-heading mb-1.5">Email</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                  disabled={!canEditCompany}
+                  className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-heading mb-1.5">Phone</label>
+                <input
+                  type="tel"
+                  value={form.phone || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                  disabled={!canEditCompany}
+                  className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-heading mb-1.5">Address</label>
+                <textarea
+                  value={form.address || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
+                  disabled={!canEditCompany}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm text-heading resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-heading mb-1.5">Welcome Message</label>
+                <textarea
+                  value={form.welcomeMessage || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, welcomeMessage: event.target.value }))}
+                  disabled={!canEditCompany}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm text-heading resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="submit"
+                disabled={!canEditCompany || saving}
+                className="px-8 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[10px] shadow-card p-6">
+            <h3 className="text-base font-heading font-bold text-heading mb-5">Business Hours</h3>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div>
+                <label className="block text-sm font-medium text-heading mb-1.5">Start</label>
+                <input
+                  type="time"
+                  value={form.businessHoursStart}
+                  onChange={(event) => setForm((current) => ({ ...current, businessHoursStart: event.target.value }))}
+                  disabled={!canEditCompany}
+                  className="h-10 px-3 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-heading mb-1.5">End</label>
+                <input
+                  type="time"
+                  value={form.businessHoursEnd}
+                  onChange={(event) => setForm((current) => ({ ...current, businessHoursEnd: event.target.value }))}
+                  disabled={!canEditCompany}
+                  className="h-10 px-3 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+                />
+              </div>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {activeTab === 'Notifications' && (
+        <div className="bg-white rounded-[10px] shadow-card p-6">
+          <h3 className="text-base font-heading font-bold text-heading mb-5">Notification Preferences</h3>
+          <div className="space-y-1">
+            {['Email notifications', 'Browser notifications', 'New message alerts', 'Assignment alerts', 'Payment reminders'].map((label) => (
+              <div key={label} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+                <div>
+                  <p className="text-sm font-medium text-heading">{label}</p>
+                  <p className="text-xs text-paragraph mt-0.5">Preference storage is not configured in the database.</p>
+                </div>
+                <Toggle enabled={false} disabled />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'Billing' && company && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-[10px] shadow-card p-6">
+              <h3 className="text-base font-heading font-bold text-heading mb-4">Current Plan</h3>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-3xl font-heading font-bold text-heading">
+                  R$ {currentPlan?.price?.toLocaleString('pt-BR') ?? '0'}
+                </span>
+                <span className="text-sm text-paragraph">/month</span>
+              </div>
+              <span className="inline-block text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary mb-4">
+                {currentPlan?.name || normalizePlanName(company.plan)}
+              </span>
+              <p className="text-sm text-paragraph mb-5 capitalize">Payment status: {company.paymentStatus}</p>
+              <Link href="/pricing" className="inline-flex w-full h-11 items-center justify-center text-sm font-semibold text-primary border-2 border-primary rounded-lg hover:bg-primary hover:text-white transition-all duration-200">
+                View Plans
+              </Link>
+            </div>
+
+            <div className="bg-white rounded-[10px] shadow-card p-6">
+              <h3 className="text-base font-heading font-bold text-heading mb-4">Usage Snapshot</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-2xl font-heading font-bold text-heading">{company._count?.users ?? 0}</p>
+                  <p className="text-xs text-paragraph">Users</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-heading font-bold text-heading">{company._count?.channels ?? 0}</p>
+                  <p className="text-xs text-paragraph">Channels</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-heading font-bold text-heading">{company._count?.conversations ?? 0}</p>
+                  <p className="text-xs text-paragraph">Convs</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[10px] shadow-card p-6">
+            <h3 className="text-base font-heading font-bold text-heading mb-2">Billing History</h3>
+            <p className="text-sm text-paragraph">Invoice history is not stored in the current database schema.</p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'API' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-[10px] shadow-card p-6">
+            <h3 className="text-base font-heading font-bold text-heading mb-5">API Key</h3>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+              Private API keys are not stored in the current database schema.
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[10px] shadow-card p-6">
+            <h3 className="text-base font-heading font-bold text-heading mb-5">Webhook URL</h3>
+            <input
+              type="url"
+              value={`${appOrigin}/api/payments/webhook`}
+              readOnly
+              className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading bg-gray-50"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

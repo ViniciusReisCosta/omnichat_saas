@@ -1,125 +1,136 @@
 # CberHunt
 
-Multi-channel customer communication SaaS: unified inbox, team and company management, rule-based chatbot helpers, and subscription-oriented data models. Built as a [Next.js](https://nextjs.org/) App Router application with a Portuguese (pt-BR) marketing surface and JWT-based sessions.
+Multi-channel customer communication SaaS built with Next.js App Router, API routes, Prisma, PostgreSQL, JWT sessions in HTTP-only cookies, and Stripe-ready billing fields.
 
-## Tech stack
+The app is a single Next.js application. The frontend pages and backend API live together in this repository under `src/app` and `src/app/api`.
+
+## Stack
 
 | Area | Choice |
 |------|--------|
-| Framework | Next.js 14 (App Router), React 18 |
+| Framework | Next.js 14, React 18 |
 | Language | TypeScript |
-| Styling | Tailwind CSS, PostCSS, Font Awesome (CDN) |
-| Database | SQLite via [Prisma](https://www.prisma.io/) ORM |
-| Auth | `jsonwebtoken`, `bcryptjs`; token stored client-side as `cber_token` |
-| Payments (schema) | Stripe fields on `Company` / `Plan`; `stripe` package is listed for future checkout flows |
+| Styling | Tailwind CSS, Font Awesome CDN |
+| Database | PostgreSQL through Prisma |
+| Auth | JWT in HTTP-only `cber_session` cookie |
+| Billing | Stripe checkout/webhook routes, backed by `Company` and `Plan` fields |
 
-## Features (current app)
+## Local Development
 
-- **Marketing**: Home, pricing, about, contact (`src/app/…`).
-- **Auth**: Register and login pages; `/api/auth/login`, `/api/auth/register`, `/api/auth/me`.
-- **Dashboard** (authenticated): overview, inbox, channels, agents, companies (role-dependent), chatbot rules, settings.
-- **REST API**: Companies, agents, conversations, and messages under `src/app/api/`.
-- **Chatbot**: Keyword/response rules per company (`ChatbotRule` model, dashboard UI).
+Requirements:
 
-## Prerequisites
+- Node.js 20.x
+- npm
+- Docker Desktop, if using the included local PostgreSQL service
 
-- **Node.js** 20.x (matches `@types/node` in the project; LTS is fine).
-- **npm** (or compatible client using `package-lock.json`).
+1. Install dependencies:
 
-## Getting started
+```bash
+npm install
+```
 
-1. **Clone and install**
+2. Create `.env` from `.env.example` and set local values:
 
-   ```bash
-   git clone <repository-url>
-   cd omnichat_saas
-   npm install
-   ```
+```env
+POSTGRES_USER=omniconnect
+POSTGRES_PASSWORD=senha123
+POSTGRES_DB=omniconnect
+DATABASE_URL="postgresql://omniconnect:senha123@127.0.0.1:5432/omniconnect?schema=public"
+JWT_SECRET="replace-with-a-long-local-secret"
+APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+PGADMIN_DEFAULT_EMAIL=admin@local.test
+PGADMIN_DEFAULT_PASSWORD=admin123
+```
 
-2. **Environment**
+3. Start PostgreSQL:
 
-   Create a `.env` file in the project root:
+```bash
+docker compose up -d postgres
+```
 
-   ```env
-   DATABASE_URL="file:./dev.db"
-   JWT_SECRET="your-long-random-secret"
-   ```
+4. Apply migrations and optionally load demo data:
 
-   Use a strong `JWT_SECRET` in production. If it is omitted, the app falls back to a development default (see `src/lib/auth.ts`).
+```bash
+npm run db:migrate
+npm run db:seed
+```
 
-3. **Database**
+`npm run db:seed` resets demo data. Do not run it against production data.
 
-   ```bash
-   npm run db:migrate
-   npm run db:seed
-   ```
+5. Start the development server:
 
-   This applies Prisma migrations and loads demo companies, users, channels, conversations, messages, plans, and chatbot rules.
+```bash
+npm run dev
+```
 
-4. **Run the dev server**
+Open `http://localhost:3000`.
 
-   ```bash
-   npm run dev
-   ```
+## Production Model
 
-   Open [http://localhost:3000](http://localhost:3000).
+Recommended deployment:
 
-## npm scripts
+- Railway hosts the full Next.js app, including `/api/*` backend routes.
+- Railway Postgres or another managed PostgreSQL provider stores production data.
+- Hostinger is used only for domain/DNS, pointing the domain to Railway.
+
+Do not split Hostinger frontend and Railway backend unless the app is intentionally refactored for cross-origin cookies and CORS. The current app expects same-origin frontend/API requests.
+
+Required production variables:
+
+```env
+DATABASE_URL=postgresql://...
+JWT_SECRET=...
+APP_URL=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+STRIPE_SECRET_KEY=...
+STRIPE_WEBHOOK_SECRET=...
+```
+
+Run production migrations with:
+
+```bash
+npm run db:deploy
+npm run db:bootstrap
+```
+
+Then build and start:
+
+```bash
+npm run build
+npm run start
+```
+
+## Scripts
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Next.js development server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server (after `build`) |
-| `npm run lint` | ESLint via Next.js |
-| `npm run db:migrate` | `prisma migrate dev` |
-| `npm run db:seed` | Run `prisma/seed.ts` |
-| `npm run db:reset` | Reset database and re-run migrations (destructive) |
+| `npm run dev` | Start Next.js dev server |
+| `npm run build` | Build production app |
+| `npm run start` | Start production server after build |
+| `npm run lint` | Run Next.js lint command |
+| `npm run postinstall` | Generate Prisma Client after dependency install |
+| `npm run db:migrate` | Create/apply local Prisma dev migrations |
+| `npm run db:deploy` | Apply existing Prisma migrations in production |
+| `npm run db:bootstrap` | Upsert required production plans without deleting data |
+| `npm run db:seed` | Reset and load demo data for local/dev |
+| `npm run db:reset` | Destructive local database reset |
 | `npm run db:studio` | Open Prisma Studio |
+| `npm run prod:check-env` | Validate required production environment variables |
+| `npm run prod:verify` | Validate env, Prisma Client/schema, and production build |
 
-## Project layout
+## Demo Accounts
 
-```
-src/app/           # App Router pages and API route handlers
-src/components/    # Shared UI (e.g. Header, Footer, Providers)
-src/contexts/      # React context (Auth)
-src/lib/           # Prisma client, auth helpers, API/chatbot utilities
-prisma/            # schema.prisma, migrations, seed.ts
-```
-
-## API overview
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| POST | `/api/auth/register` | Register user (optional company) |
-| POST | `/api/auth/login` | Login; returns JWT |
-| GET | `/api/auth/me` | Current user (Bearer token) |
-| GET, POST | `/api/companies` | List / create companies |
-| GET, PATCH, DELETE | `/api/companies/[id]` | Single company |
-| GET, POST | `/api/agents` | List / create agents |
-| GET, PATCH, DELETE | `/api/agents/[id]` | Single agent |
-| GET, POST | `/api/conversations` | List / create conversations |
-| GET, PATCH, DELETE | `/api/conversations/[id]` | Single conversation |
-| GET, POST | `/api/conversations/[id]/messages` | Messages for a conversation |
-
-## Seed data (demo logins)
-
-After `npm run db:seed`, you can sign in with accounts such as:
+After `npm run db:seed`:
 
 | Email | Password | Role |
 |-------|----------|------|
 | `admin@cberhunt.com` | `admin123` | Super admin |
-| `carlos@techbrasil.com` | `123456` | Company admin (TechBrasil) |
+| `carlos@techbrasil.com` | `123456` | Company admin |
 | `maria@techbrasil.com` | `123456` | Agent |
 
-Additional agents and a second company admin are defined in `prisma/seed.ts`.
+## Data Notes
 
-## Production notes
+Operational dashboard screens are wired to database-backed API routes where a Prisma model exists. Areas without a persistence model, such as notification preferences, API keys, and invoice history, are shown as unavailable instead of displaying fake records.
 
-- Point `DATABASE_URL` to your production database; SQLite is convenient for local development only.
-- Set a secure `JWT_SECRET` and never rely on the fallback secret.
-- Run `npm run build` then `npm run start` (or deploy on a platform that runs Next.js builds).
-
-## License
-
-Private project (`"private": true` in `package.json`). Add a license file if you intend to open-source or distribute the codebase.
+For production, run `npm run db:bootstrap` after migrations to create or update the required `Plan` records. This script uses upserts and does not delete companies, users, conversations, or messages.

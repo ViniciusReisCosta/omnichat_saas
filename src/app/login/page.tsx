@@ -9,7 +9,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
-  const { login, isAuthenticated, loading: authLoading } = useAuth();
+  const { login, isAuthenticated, loading: authLoading, hasActiveAccess } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,16 +17,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) router.push('/dashboard');
-  }, [isAuthenticated, authLoading, router]);
+    if (!authLoading && isAuthenticated) {
+      router.push(hasActiveAccess ? '/dashboard' : '/billing');
+    }
+  }, [isAuthenticated, authLoading, router, hasActiveAccess]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      router.push('/dashboard');
+      const result = await login(email, password);
+      router.push(result.nextStep === 'dashboard' ? '/dashboard' : '/billing');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
