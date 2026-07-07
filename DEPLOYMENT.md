@@ -1,27 +1,39 @@
-# Production Deployment: Railway + Hostinger DNS
+# Production Deployment: Next.js Frontend + NestJS API
 
-This project should be deployed as one Next.js application. The frontend and backend API routes are served by the same app and should share the same HTTPS origin.
+This project now uses a separate NestJS backend in `D:\nodeprojects\omnichat_backend`. The frontend calls that API through `NEXT_PUBLIC_API_URL`.
 
 Recommended setup:
 
-- Railway: hosts the Next.js app and PostgreSQL.
+- Railway, Heroku, VPS, or another Node host: hosts the Next.js frontend.
+- Heroku, Railway, VPS, or another Node host: hosts the NestJS backend.
+- Managed PostgreSQL: stores backend data.
 - Hostinger: manages the domain DNS only.
-- No separate `api.` backend is required for the current architecture.
 
-## 1. Railway Services
+## 1. Services
 
-Create a Railway project with:
+Create services for:
 
-- One PostgreSQL database service.
-- One app service connected to this repository.
+- PostgreSQL.
+- NestJS backend from `D:\nodeprojects\omnichat_backend`.
+- Next.js frontend from this repository.
 
-Configure these variables on the app service:
+Frontend variables:
 
 ```env
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-JWT_SECRET=replace-with-a-long-random-secret
 APP_URL=https://your-domain.com
 NEXT_PUBLIC_APP_URL=https://your-domain.com
+NEXT_PUBLIC_API_URL=https://your-api-domain.com
+```
+
+Backend variables:
+
+```env
+PORT=4000
+FRONTEND_ORIGIN=https://your-domain.com
+APP_URL=https://your-domain.com
+DATABASE_URL=postgresql://...
+JWT_SECRET=replace-with-a-long-random-secret
+SESSION_COOKIE_SAME_SITE=none
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_PRICE_STARTER=
@@ -31,7 +43,7 @@ STRIPE_PRICE_ENTERPRISE=
 
 Set Stripe variables only when billing checkout/webhooks are active.
 
-## 2. Build And Start
+## 2. Build And Start Frontend
 
 Railway can use the standard npm scripts:
 
@@ -40,8 +52,6 @@ npm install
 npm run build
 npm run start
 ```
-
-`npm install` runs `postinstall`, which generates the Prisma Client for the Railway environment.
 
 If Railway asks for explicit commands:
 
@@ -53,22 +63,16 @@ npm run build
 npm run start
 ```
 
-## 3. Database Migrations
+## 3. Backend Schema And Seed
 
-Apply migrations to production with:
-
-```bash
-npm run db:deploy
-npm run db:bootstrap
-```
-
-Do not run:
+The backend owns schema creation and seed. On Heroku this runs through the backend `Procfile` release phase. To run the same preparation manually:
 
 ```bash
-npm run db:seed
+cd D:\nodeprojects\omnichat_backend
+npm run db:prepare
 ```
 
-The seed script deletes and recreates demo data. It is only for local development or disposable staging environments. Use `db:bootstrap` in production because it upserts required plans without deleting existing data.
+The seed upserts plans, channel types, and the super admin only. It does not create demo companies, contacts, conversations, or messages.
 
 ## 4. Hostinger DNS
 
@@ -80,34 +84,22 @@ Typical flow:
 2. Railway provides the DNS record to create.
 3. Add that DNS record in Hostinger.
 4. Wait for DNS propagation.
-5. Set `APP_URL` and `NEXT_PUBLIC_APP_URL` to the final HTTPS domain in Railway.
-
-Keep frontend and API on the same domain. The app uses HTTP-only cookies and same-origin API calls.
+5. Set `APP_URL`, `NEXT_PUBLIC_APP_URL`, and `NEXT_PUBLIC_API_URL` to the final HTTPS origins.
+6. Set backend `FRONTEND_ORIGIN` to the frontend HTTPS origin.
 
 ## 5. Verification
 
-After deploy:
-
-```bash
-npm run db:deploy
-```
-
-Then verify:
+After deploy, verify:
 
 - `https://your-domain.com` loads the marketing site.
-- `/register` creates a company and user in PostgreSQL.
+- `https://your-api-domain.com/api/health` returns `{ "status": "ok" }`.
+- `/register` creates a company and user through the NestJS API.
 - `/login` creates the `cber_session` cookie.
 - `/dashboard` reads real database data.
-- `/api/plans` returns plan records.
+- `https://your-api-domain.com/api/plans` returns plan records.
 - Stripe checkout plans have real `stripePriceId` values if billing is enabled.
-- Stripe webhook URL, if enabled, is `https://your-domain.com/api/payments/webhook`.
+- Stripe webhook URL, if enabled, is `https://your-api-domain.com/api/payments/webhook`.
 
 ## 6. VPS Script
 
-`deploy/deploy.sh` remains available for a VPS/pm2 deployment. It now skips seed by default. To seed an empty disposable environment, run:
-
-```bash
-RUN_SEED=true ./deploy/deploy.sh
-```
-
-Do not use `RUN_SEED=true` against production data.
+`deploy/deploy.sh` remains available for a VPS/pm2 frontend deployment. Backend deployment and database preparation are handled from `D:\nodeprojects\omnichat_backend`.

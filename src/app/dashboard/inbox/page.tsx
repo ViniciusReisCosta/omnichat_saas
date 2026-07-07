@@ -3,25 +3,30 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 
-const CHANNEL_COLORS: Record<string, string> = {
-  whatsapp: '#25D366',
-  instagram: '#E4405F',
-  facebook: '#1877F2',
-};
-
-const CHANNEL_ICONS: Record<string, string> = {
-  whatsapp: 'fab fa-whatsapp',
-  instagram: 'fab fa-instagram',
-  facebook: 'fab fa-facebook-messenger',
-};
-
 const STATUS_COLORS: Record<string, string> = {
   open: '#25D366',
   pending: '#f59e0b',
   closed: '#9ca3af',
 };
 
-const QUICK_REPLIES = ['Obrigado!', 'Como posso ajudar?', 'Um momento, por favor'];
+interface ChannelType {
+  type: string;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+interface ChannelConfig {
+  id: string;
+  type: string;
+  name: string;
+  connected: boolean;
+}
+
+interface QuickReply {
+  id: string;
+  text: string;
+}
 
 interface Agent {
   id: string;
@@ -55,6 +60,12 @@ interface ConversationItem {
   createdAt: string;
   updatedAt: string;
   messages: MessageData[];
+  tags?: { id: string; label: string; color: string }[];
+}
+
+function channelMeta(channelTypes: ChannelType[], type?: string) {
+  if (!type) return null;
+  return channelTypes.find((item) => item.type === type) || { type, label: type, icon: 'fas fa-plug', color: '#9ca3af' };
 }
 
 function getInitials(name: string): string {
@@ -92,11 +103,15 @@ function AvatarCircle({
   initials,
   size = 40,
   channel,
+  channelTypes,
 }: {
   initials: string;
   size?: number;
   channel?: string;
+  channelTypes: ChannelType[];
 }) {
+  const meta = channelMeta(channelTypes, channel);
+
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <div
@@ -108,12 +123,12 @@ function AvatarCircle({
       >
         {initials}
       </div>
-      {channel && CHANNEL_COLORS[channel] && (
+      {meta && (
         <div
           className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white"
-          style={{ backgroundColor: CHANNEL_COLORS[channel] }}
+          style={{ backgroundColor: meta.color }}
         >
-          <i className={`${CHANNEL_ICONS[channel]} text-white`} style={{ fontSize: 8 }} />
+          <i className={`${meta.icon} text-white`} style={{ fontSize: 8 }} />
         </div>
       )}
     </div>
@@ -124,10 +139,12 @@ function ConversationRow({
   convo,
   isActive,
   onClick,
+  channelTypes,
 }: {
   convo: ConversationItem;
   isActive: boolean;
   onClick: () => void;
+  channelTypes: ChannelType[];
 }) {
   const lastMsg = convo.messages[0];
   return (
@@ -137,7 +154,7 @@ function ConversationRow({
         isActive ? 'bg-primary/5 border-l-primary' : 'border-l-transparent hover:bg-gray-50'
       }`}
     >
-      <AvatarCircle initials={getInitials(convo.customerName)} size={44} channel={convo.channel} />
+      <AvatarCircle initials={getInitials(convo.customerName)} size={44} channel={convo.channel} channelTypes={channelTypes} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="font-heading font-bold text-heading text-[13px] truncate">
@@ -248,13 +265,22 @@ function SkeletonList() {
 function NewConversationForm({
   onSubmit,
   onCancel,
+  channels,
+  channelTypes,
 }: {
-  onSubmit: (data: { customerName: string; channel: string; customerPhone?: string }) => void;
+  onSubmit: (data: { customerName: string; channel: string; channelId: string; customerPhone?: string }) => void;
   onCancel: () => void;
+  channels: ChannelConfig[];
+  channelTypes: ChannelType[];
 }) {
   const [name, setName] = useState('');
-  const [channel, setChannel] = useState('whatsapp');
+  const [channelId, setChannelId] = useState(channels[0]?.id || '');
   const [phone, setPhone] = useState('');
+  const selectedChannel = channels.find((channel) => channel.id === channelId);
+
+  useEffect(() => {
+    setChannelId((current) => current || channels[0]?.id || '');
+  }, [channels]);
 
   return (
     <div className="p-4 border-b border-gray-200 bg-gray-50">
@@ -267,13 +293,19 @@ function NewConversationForm({
         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-heading placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all mb-2"
       />
       <select
-        value={channel}
-        onChange={(e) => setChannel(e.target.value)}
+        value={channelId}
+        onChange={(e) => setChannelId(e.target.value)}
+        disabled={channels.length === 0}
         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-heading focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all mb-2"
       >
-        <option value="whatsapp">WhatsApp</option>
-        <option value="instagram">Instagram</option>
-        <option value="facebook">Facebook</option>
+        {channels.length === 0 ? (
+          <option value="">Nenhum canal conectado</option>
+        ) : (
+          channels.map((channel) => {
+            const meta = channelMeta(channelTypes, channel.type);
+            return <option key={channel.id} value={channel.id}>{channel.name || meta?.label || channel.type}</option>;
+          })
+        )}
       </select>
       <input
         type="text"
@@ -284,8 +316,8 @@ function NewConversationForm({
       />
       <div className="flex gap-2">
         <button
-          onClick={() => name.trim() && onSubmit({ customerName: name, channel, customerPhone: phone || undefined })}
-          disabled={!name.trim()}
+          onClick={() => name.trim() && selectedChannel && onSubmit({ customerName: name, channel: selectedChannel.type, channelId: selectedChannel.id, customerPhone: phone || undefined })}
+          disabled={!name.trim() || !selectedChannel}
           className="flex-1 py-2 bg-primary text-white text-[12px] font-bold rounded-lg hover:bg-primary/90 transition-all disabled:opacity-50"
         >
           Criar
@@ -314,6 +346,9 @@ export default function InboxPage() {
   const [sending, setSending] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [channelTypes, setChannelTypes] = useState<ChannelType[]>([]);
+  const [channels, setChannels] = useState<ChannelConfig[]>([]);
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [showReassign, setShowReassign] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -368,6 +403,9 @@ export default function InboxPage() {
 
   useEffect(() => {
     apiGet<Agent[]>('/api/agents').then(setAgents).catch(() => {});
+    apiGet<ChannelType[]>('/api/channel-types').then(setChannelTypes).catch(() => {});
+    apiGet<ChannelConfig[]>('/api/channels').then(setChannels).catch(() => {});
+    apiGet<QuickReply[]>('/api/quick-replies').then(setQuickReplies).catch(() => {});
   }, []);
 
   const sendMessage = async () => {
@@ -415,6 +453,7 @@ export default function InboxPage() {
   const createConversation = async (form: {
     customerName: string;
     channel: string;
+    channelId: string;
     customerPhone?: string;
   }) => {
     try {
@@ -435,10 +474,15 @@ export default function InboxPage() {
 
   const channelFilters: { key: string; label: string; color?: string }[] = [
     { key: '', label: 'Todos' },
-    { key: 'whatsapp', label: 'WhatsApp', color: CHANNEL_COLORS.whatsapp },
-    { key: 'instagram', label: 'Instagram', color: CHANNEL_COLORS.instagram },
-    { key: 'facebook', label: 'Facebook', color: CHANNEL_COLORS.facebook },
+    ...Array.from(new Set([...channels.map((channel) => channel.type), ...conversations.map((conversation) => conversation.channel)]))
+      .filter(Boolean)
+      .map((type) => {
+        const meta = channelMeta(channelTypes, type);
+        return { key: type, label: meta?.label || type, color: meta?.color };
+      }),
   ];
+  const connectedChannels = channels.filter((channel) => channel.connected);
+  const detailChannelMeta = detail ? channelMeta(channelTypes, detail.channel) : null;
 
   return (
     <div className="flex -m-6" style={{ height: 'calc(100vh - 64px)' }}>
@@ -503,7 +547,12 @@ export default function InboxPage() {
         </div>
 
         {showNewForm && (
-          <NewConversationForm onSubmit={createConversation} onCancel={() => setShowNewForm(false)} />
+          <NewConversationForm
+            onSubmit={createConversation}
+            onCancel={() => setShowNewForm(false)}
+            channels={connectedChannels}
+            channelTypes={channelTypes}
+          />
         )}
 
         <div className="flex-1 overflow-y-auto">
@@ -521,6 +570,7 @@ export default function InboxPage() {
                 convo={c}
                 isActive={selectedId === c.id}
                 onClick={() => setSelectedId(c.id)}
+                channelTypes={channelTypes}
               />
             ))
           )}
@@ -553,22 +603,23 @@ export default function InboxPage() {
                   initials={getInitials(detail.customerName)}
                   size={40}
                   channel={detail.channel}
+                  channelTypes={channelTypes}
                 />
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-heading font-bold text-heading text-[14px]">
                       {detail.customerName}
                     </span>
-                    {CHANNEL_COLORS[detail.channel] && (
+                    {detailChannelMeta && (
                       <span
                         className="px-2 py-0.5 rounded-full text-white text-[9px] font-bold uppercase"
-                        style={{ backgroundColor: CHANNEL_COLORS[detail.channel] }}
+                        style={{ backgroundColor: detailChannelMeta.color }}
                       >
                         <i
-                          className={`${CHANNEL_ICONS[detail.channel]} mr-1`}
+                          className={`${detailChannelMeta.icon} mr-1`}
                           style={{ fontSize: 9 }}
                         />
-                        {detail.channel}
+                        {detailChannelMeta.label}
                       </span>
                     )}
                     <span
@@ -630,17 +681,19 @@ export default function InboxPage() {
             </div>
 
             <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
-              <div className="flex gap-2 mb-3">
-                {QUICK_REPLIES.map((qr) => (
+              {quickReplies.length > 0 && (
+                <div className="flex gap-2 mb-3">
+                {quickReplies.map((qr) => (
                   <button
-                    key={qr}
-                    onClick={() => setMessageInput(qr)}
+                    key={qr.id}
+                    onClick={() => setMessageInput(qr.text)}
                     className="px-3 py-1 bg-gray-50 border border-gray-200 rounded-full text-[11px] text-paragraph hover:bg-primary hover:text-white hover:border-primary transition-all"
                   >
-                    {qr}
+                    {qr.text}
                   </button>
                 ))}
-              </div>
+                </div>
+              )}
               <div className="flex items-end gap-2">
                 <button className="w-9 h-9 rounded-lg flex items-center justify-center text-paragraph hover:bg-gray-100 hover:text-heading transition-all flex-shrink-0">
                   <i className="fa-solid fa-paperclip text-[15px]" />
@@ -685,6 +738,7 @@ export default function InboxPage() {
                 initials={getInitials(detail.customerName)}
                 size={64}
                 channel={detail.channel}
+                channelTypes={channelTypes}
               />
               <h3 className="font-heading font-bold text-heading text-[16px] mt-3">
                 {detail.customerName}
@@ -702,15 +756,15 @@ export default function InboxPage() {
                 Canal
               </h4>
               <div className="flex items-center gap-2">
-                {CHANNEL_ICONS[detail.channel] && (
+                {detailChannelMeta && (
                   <i
-                    className={CHANNEL_ICONS[detail.channel]}
-                    style={{ color: CHANNEL_COLORS[detail.channel], fontSize: 16 }}
+                    className={detailChannelMeta.icon}
+                    style={{ color: detailChannelMeta.color, fontSize: 16 }}
                   />
                 )}
                 <div>
                   <p className="text-[13px] text-heading font-medium capitalize">
-                    {detail.channel}
+                    {detailChannelMeta?.label || detail.channel}
                   </p>
                   {detail.customerPhone && (
                     <p className="text-[11px] text-paragraph">{detail.customerPhone}</p>
@@ -723,16 +777,17 @@ export default function InboxPage() {
               <h4 className="font-heading font-bold text-heading text-[12px] uppercase tracking-wider mb-2.5">
                 Tags
               </h4>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="px-2.5 py-0.5 rounded-full text-white text-[10px] font-bold bg-[#25D366]">
-                  Portuguese
-                </span>
-                {detail.status === 'open' && (
-                  <span className="px-2.5 py-0.5 rounded-full text-white text-[10px] font-bold bg-[#1273eb]">
-                    Active
-                  </span>
-                )}
-              </div>
+              {detail.tags && detail.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {detail.tags.map((tag) => (
+                    <span key={tag.id} className="px-2.5 py-0.5 rounded-full text-white text-[10px] font-bold" style={{ backgroundColor: tag.color }}>
+                      {tag.label}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12px] text-paragraph">Nenhuma tag cadastrada</p>
+              )}
             </div>
 
             <div className="p-5 border-b border-gray-100">
@@ -795,7 +850,7 @@ export default function InboxPage() {
                   { label: 'Criado', value: formatDate(detail.createdAt) },
                   {
                     label: 'Canal',
-                    value: detail.channel.charAt(0).toUpperCase() + detail.channel.slice(1),
+                    value: detailChannelMeta?.label || detail.channel.charAt(0).toUpperCase() + detail.channel.slice(1),
                   },
                   {
                     label: 'Status',

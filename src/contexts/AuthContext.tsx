@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiGet, apiPost } from '@/lib/api';
 
 interface Company {
   id: string;
@@ -45,14 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasActiveAccess = user?.hasActiveAccess === true;
 
   const loadCurrentUser = async () => {
-    const res = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' });
-    if (!res.ok) {
+    try {
+      const data = await apiGet<User>('/auth/me');
+      setUser(data);
+    } catch (error) {
       setUser(null);
-      throw new Error('Invalid token');
+      throw error;
     }
-
-    const data = await res.json();
-    setUser(data);
   };
 
   useEffect(() => {
@@ -62,31 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<AuthResponse> => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
-
+    const data = await apiPost<AuthResponse>('/auth/login', { email, password });
     setUser(data.user);
     return data;
   };
 
   const register = async (formData: { name: string; email: string; password: string; companyName?: string }): Promise<AuthResponse> => {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify(formData),
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Registration failed');
-
+    const data = await apiPost<AuthResponse>('/auth/register', formData);
     setUser(data.user);
     return data;
   };
@@ -97,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      await apiPost('/auth/logout');
     } finally {
       setUser(null);
       router.push('/login');

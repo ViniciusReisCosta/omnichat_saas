@@ -14,31 +14,30 @@ type Channel = {
   _count?: { conversations: number };
 };
 
-const channelCatalog: Record<string, { label: string; icon: string; color: string }> = {
-  whatsapp: { label: 'WhatsApp Business', icon: 'fab fa-whatsapp', color: '#25D366' },
-  instagram: { label: 'Instagram DM', icon: 'fab fa-instagram', color: '#E4405F' },
-  facebook: { label: 'Facebook Messenger', icon: 'fab fa-facebook-messenger', color: '#1877F2' },
-  telegram: { label: 'Telegram', icon: 'fab fa-telegram', color: '#0088cc' },
-  email: { label: 'Email', icon: 'fas fa-envelope', color: '#6366f1' },
-  sms: { label: 'SMS', icon: 'fas fa-sms', color: '#f59e0b' },
+type ChannelType = {
+  type: string;
+  label: string;
+  icon: string;
+  color: string;
 };
 
-const emptyForm = { type: 'whatsapp', name: '', accountId: '' };
+const emptyForm = { type: '', name: '', accountId: '' };
 
-function channelMeta(type: string) {
-  return channelCatalog[type] || { label: type, icon: 'fas fa-plug', color: '#1273eb' };
+function channelMeta(type: string, channelTypes: ChannelType[]) {
+  return channelTypes.find((item) => item.type === type) || { label: type, icon: 'fas fa-plug', color: '#1273eb' };
 }
 
 export default function ChannelsPage() {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [channelTypes, setChannelTypes] = useState<ChannelType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
-  const canCreateChannel = user?.role !== 'super_admin' || Boolean(user?.company?.id);
+  const canCreateChannel = (user?.role !== 'super_admin' || Boolean(user?.company?.id)) && channelTypes.length > 0;
 
   const loadChannels = async () => {
     setError('');
@@ -53,7 +52,13 @@ export default function ChannelsPage() {
   };
 
   useEffect(() => {
-    loadChannels();
+    Promise.all([
+      loadChannels(),
+      apiGet<ChannelType[]>('/channel-types').then((data) => {
+        setChannelTypes(data);
+        setForm((current) => ({ ...current, type: current.type || data[0]?.type || '' }));
+      }),
+    ]).catch(() => undefined);
   }, []);
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
@@ -122,8 +127,8 @@ export default function ChannelsPage() {
               onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}
               className="h-10 px-4 rounded-lg border border-gray-200 text-sm text-heading bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             >
-              {Object.entries(channelCatalog).map(([type, meta]) => (
-                <option key={type} value={type}>{meta.label}</option>
+              {channelTypes.map((meta) => (
+                <option key={meta.type} value={meta.type}>{meta.label}</option>
               ))}
             </select>
             <input
@@ -162,7 +167,7 @@ export default function ChannelsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {channels.map((channel) => {
-            const meta = channelMeta(channel.type);
+            const meta = channelMeta(channel.type, channelTypes);
             return (
               <div key={channel.id} className="bg-white rounded-[10px] shadow-card overflow-hidden">
                 <div className="h-2" style={{ backgroundColor: meta.color }} />
@@ -220,10 +225,10 @@ export default function ChannelsPage() {
       <div>
         <h3 className="text-lg font-heading font-bold text-heading mb-4">Available Integrations</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {Object.entries(channelCatalog).map(([type, meta]) => {
-            const configured = channels.some((channel) => channel.type === type);
+          {channelTypes.map((meta) => {
+            const configured = channels.some((channel) => channel.type === meta.type);
             return (
-              <div key={type} className="bg-white rounded-[10px] shadow-card p-5 flex items-center gap-4">
+              <div key={meta.type} className="bg-white rounded-[10px] shadow-card p-5 flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${meta.color}15` }}>
                   <i className={`${meta.icon} text-lg`} style={{ color: meta.color }} />
                 </div>

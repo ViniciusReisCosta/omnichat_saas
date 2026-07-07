@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { apiGet, apiPut } from '@/lib/api';
+import { apiDelete, apiGet, apiPath, apiPost, apiPut } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 type CompanySettings = {
@@ -34,6 +34,36 @@ type Plan = {
   maxMessages: number;
 };
 
+type NotificationPreferences = {
+  id: string;
+  emailNotifications: boolean;
+  browserNotifications: boolean;
+  newMessageAlerts: boolean;
+  assignmentAlerts: boolean;
+  paymentReminders: boolean;
+};
+
+type ApiKeyRecord = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  active: boolean;
+  createdAt: string;
+  lastUsedAt?: string | null;
+  revokedAt?: string | null;
+};
+
+type CreatedApiKey = ApiKeyRecord & { token: string };
+
+type Invoice = {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  hostedInvoiceUrl?: string | null;
+  createdAt: string;
+};
+
 const tabs = ['General', 'Notifications', 'Billing', 'API'];
 
 const emptyCompany: CompanySettings = {
@@ -50,11 +80,12 @@ const emptyCompany: CompanySettings = {
   welcomeMessage: '',
 };
 
-function Toggle({ enabled, disabled = false }: { enabled: boolean; disabled?: boolean }) {
+function Toggle({ enabled, disabled = false, onClick }: { enabled: boolean; disabled?: boolean; onClick?: () => void }) {
   return (
     <button
       type="button"
       disabled={disabled}
+      onClick={onClick}
       className={`relative w-11 h-6 rounded-full transition-colors duration-200 disabled:opacity-50 ${enabled ? 'bg-primary' : 'bg-gray-300'}`}
     >
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -72,6 +103,11 @@ export default function SettingsPage() {
   const [company, setCompany] = useState<CompanySettings | null>(null);
   const [form, setForm] = useState<CompanySettings>(emptyCompany);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [apiKeyName, setApiKeyName] = useState('Production key');
+  const [createdApiKey, setCreatedApiKey] = useState<CreatedApiKey | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -94,17 +130,25 @@ export default function SettingsPage() {
     Promise.all([
       apiGet<CompanySettings>(`/companies/${companyId}`),
       apiGet<Plan[]>('/plans'),
+      apiGet<NotificationPreferences>('/notification-preferences'),
+      apiGet<ApiKeyRecord[]>('/api-keys'),
+      apiGet<Invoice[]>('/invoices'),
     ])
-      .then(([companyData, planData]) => {
+      .then(([companyData, planData, preferencesData, apiKeysData, invoicesData]) => {
         setCompany(companyData);
         setForm({ ...emptyCompany, ...companyData });
         setPlans(planData);
+        setNotificationPreferences(preferencesData);
+        setApiKeys(apiKeysData);
+        setInvoices(invoicesData);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load settings'))
       .finally(() => setLoading(false));
   }, [user?.company?.id]);
 
   const currentPlan = useMemo(() => plans.find((plan) => plan.slug === company?.plan), [company?.plan, plans]);
+  const webhookPath = apiPath('/payments/webhook');
+  const webhookUrl = webhookPath.startsWith('http') ? webhookPath : `${appOrigin}${webhookPath}`;
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -133,6 +177,26 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateNotificationPreference = async (key: keyof Omit<NotificationPreferences, 'id'>) => {
+    if (!notificationPreferences) return;
+    const updated = await apiPut<NotificationPreferences>('/notification-preferences', {
+      ...notificationPreferences,
+      [key]: !notificationPreferences[key],
+    });
+    setNotificationPreferences(updated);
+  };
+
+  const createApiKey = async () => {
+    const created = await apiPost<CreatedApiKey>('/api-keys', { name: apiKeyName });
+    setCreatedApiKey(created);
+    setApiKeys((current) => [created, ...current]);
+  };
+
+  const revokeApiKey = async (id: string) => {
+    await apiDelete(`/api-keys/${id}`);
+    setApiKeys((current) => current.map((key) => key.id === id ? { ...key, active: false, revokedAt: new Date().toISOString() } : key));
   };
 
   if (loading) {
@@ -277,13 +341,23 @@ export default function SettingsPage() {
         <div className="bg-white rounded-[10px] shadow-card p-6">
           <h3 className="text-base font-heading font-bold text-heading mb-5">Notification Preferences</h3>
           <div className="space-y-1">
-            {['Email notifications', 'Browser notifications', 'New message alerts', 'Assignment alerts', 'Payment reminders'].map((label) => (
-              <div key={label} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+            {[
+              { label: 'Email notifications', key: 'emailNotifications' },
+              { label: 'Browser notifications', key: 'browserNotifications' },
+              { label: 'New message alerts', key: 'newMessageAlerts' },
+              { label: 'Assignment alerts', key: 'assignmentAlerts' },
+              { label: 'Payment reminders', key: 'paymentReminders' },
+            ].map((item) => (
+              <div key={item.key} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
                 <div>
-                  <p className="text-sm font-medium text-heading">{label}</p>
-                  <p className="text-xs text-paragraph mt-0.5">Preference storage is not configured in the database.</p>
+                  <p className="text-sm font-medium text-heading">{item.label}</p>
+                  <p className="text-xs text-paragraph mt-0.5">Stored in your workspace preferences.</p>
                 </div>
-                <Toggle enabled={false} disabled />
+                <Toggle
+                  enabled={Boolean(notificationPreferences?.[item.key as keyof Omit<NotificationPreferences, 'id'>])}
+                  disabled={!canEditCompany || !notificationPreferences}
+                  onClick={() => updateNotificationPreference(item.key as keyof Omit<NotificationPreferences, 'id'>)}
+                />
               </div>
             ))}
           </div>
@@ -331,7 +405,42 @@ export default function SettingsPage() {
 
           <div className="bg-white rounded-[10px] shadow-card p-6">
             <h3 className="text-base font-heading font-bold text-heading mb-2">Billing History</h3>
-            <p className="text-sm text-paragraph">Invoice history is not stored in the current database schema.</p>
+            {invoices.length === 0 ? (
+              <p className="text-sm text-paragraph">No invoices found.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="py-3 text-left text-xs font-semibold uppercase text-paragraph">Date</th>
+                      <th className="py-3 text-left text-xs font-semibold uppercase text-paragraph">Amount</th>
+                      <th className="py-3 text-left text-xs font-semibold uppercase text-paragraph">Status</th>
+                      <th className="py-3 text-left text-xs font-semibold uppercase text-paragraph">Invoice</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((invoice) => (
+                      <tr key={invoice.id} className="border-b border-gray-50 last:border-0">
+                        <td className="py-3 text-sm text-heading">{new Date(invoice.createdAt).toLocaleDateString('pt-BR')}</td>
+                        <td className="py-3 text-sm text-heading">
+                          {invoice.amount.toLocaleString('pt-BR', { style: 'currency', currency: invoice.currency.toUpperCase() })}
+                        </td>
+                        <td className="py-3 text-sm text-heading capitalize">{invoice.status}</td>
+                        <td className="py-3 text-sm">
+                          {invoice.hostedInvoiceUrl ? (
+                            <a href={invoice.hostedInvoiceUrl} target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+                              Open
+                            </a>
+                          ) : (
+                            <span className="text-paragraph">Unavailable</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -340,8 +449,59 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-[10px] shadow-card p-6">
             <h3 className="text-base font-heading font-bold text-heading mb-5">API Key</h3>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
-              Private API keys are not stored in the current database schema.
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                value={apiKeyName}
+                onChange={(event) => setApiKeyName(event.target.value)}
+                disabled={!canEditCompany}
+                className="h-11 flex-1 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-gray-50"
+              />
+              <button
+                type="button"
+                onClick={createApiKey}
+                disabled={!canEditCompany || !apiKeyName.trim()}
+                className="h-11 px-6 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                Create Key
+              </button>
+            </div>
+
+            {createdApiKey && (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <p className="text-xs uppercase font-bold text-emerald-700 mb-2">New API key</p>
+                <input
+                  value={createdApiKey.token}
+                  readOnly
+                  className="w-full h-10 px-3 rounded-lg border border-emerald-200 bg-white text-sm text-heading"
+                />
+              </div>
+            )}
+
+            <div className="mt-5 divide-y divide-gray-100">
+              {apiKeys.length === 0 ? (
+                <p className="text-sm text-paragraph">No API keys created yet.</p>
+              ) : (
+                apiKeys.map((key) => (
+                  <div key={key.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-heading">{key.name}</p>
+                      <p className="text-xs text-paragraph mt-0.5">
+                        {key.keyPrefix}... - {key.active ? 'Active' : 'Revoked'} - {new Date(key.createdAt).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    {key.active && (
+                      <button
+                        type="button"
+                        onClick={() => revokeApiKey(key.id)}
+                        disabled={!canEditCompany}
+                        className="h-9 px-4 text-sm font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -349,7 +509,7 @@ export default function SettingsPage() {
             <h3 className="text-base font-heading font-bold text-heading mb-5">Webhook URL</h3>
             <input
               type="url"
-              value={`${appOrigin}/api/payments/webhook`}
+              value={webhookUrl}
               readOnly
               className="w-full h-11 px-4 rounded-lg border border-gray-200 text-sm text-heading bg-gray-50"
             />

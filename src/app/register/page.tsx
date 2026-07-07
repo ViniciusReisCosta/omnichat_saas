@@ -64,14 +64,7 @@ export default function RegisterPage() {
                     <i className="fas fa-user-plus text-3xl text-white"></i>
                   </div>
                   <h4 className="text-xl font-extrabold font-heading text-white mb-4">Get Started</h4>
-                  <p className="text-white/70 text-sm mb-6">Create your account and start managing conversations</p>
-                  <div className="flex gap-3">
-                    {[{ icon: 'facebook-f', bg: '#3b5998' }, { icon: 'google', bg: '#dd4b39' }, { icon: 'linkedin-in', bg: '#0077b5' }].map((s) => (
-                      <button key={s.icon} type="button" className="w-10 h-10 rounded-full flex items-center justify-center text-white transition-transform hover:scale-110" style={{ background: s.bg }}>
-                        <i className={`fab fa-${s.icon} text-sm`}></i>
-                      </button>
-                    ))}
-                  </div>
+                  <p className="text-white/70 text-sm">Create your account and start managing conversations</p>
                 </div>
 
                 <div className="lg:w-2/3 p-10">
@@ -91,10 +84,6 @@ export default function RegisterPage() {
                       <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
                       <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm Password*" className="w-full border border-gray-200 rounded-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" required />
                     </div>
-
-                    <label className="flex items-center gap-2 text-sm text-paragraph cursor-pointer">
-                      <input type="checkbox" required className="rounded" /> I agree to the <a href="#" className="text-primary font-semibold">Terms & Conditions</a>
-                    </label>
 
                     <button type="submit" disabled={loading} className="w-full text-white py-3 rounded-pill font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: 'linear-gradient(45deg, #ee2852 0%, #1273eb 50%)' }}>
                       {loading ? <><i className="fas fa-spinner fa-spin mr-2"></i>Creating account...</> : 'Register'}

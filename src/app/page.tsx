@@ -17,12 +17,29 @@ type HomePlan = {
   features: string;
 };
 
+type PublicMetrics = {
+  companies: number;
+  activeCompanies: number;
+  messages: number;
+  connectedChannels: number;
+  conversations: number;
+};
+
+type ChannelType = {
+  type: string;
+  label: string;
+  icon: string;
+  color: string;
+};
+
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const started = useRef(false);
 
   useEffect(() => {
+    started.current = false;
+    setCount(0);
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !started.current) {
@@ -78,12 +95,6 @@ const steps = [
   { icon: 'fa-rocket', title: 'Grow Your Business', desc: 'Deliver faster responses, happier customers, and scale your support as your business grows.' },
 ];
 
-const testimonials = [
-  { name: 'Maria Santos', company: 'TechFlow Inc.', quote: 'CberHunt transformed how we handle customer support. Response times dropped by 60% and customer satisfaction is at an all-time high.', rating: 5 },
-  { name: 'Carlos Rivera', company: 'GrowthHub', quote: 'The unified inbox is a game-changer. Managing WhatsApp and Instagram from one place saved our team hours every day.', rating: 5 },
-  { name: 'Ana Beatriz', company: 'ShopNow Digital', quote: 'We switched from three different tools to CberHunt and never looked back. The analytics alone are worth the investment.', rating: 5 },
-];
-
 function parsePlanFeatures(value: string) {
   try {
     const parsed = JSON.parse(value);
@@ -95,6 +106,14 @@ function parsePlanFeatures(value: string) {
 
 export default function HomePage() {
   const [plans, setPlans] = useState<HomePlan[]>([]);
+  const [metrics, setMetrics] = useState<PublicMetrics>({
+    companies: 0,
+    activeCompanies: 0,
+    messages: 0,
+    connectedChannels: 0,
+    conversations: 0,
+  });
+  const [channelTypes, setChannelTypes] = useState<ChannelType[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
 
   useEffect(() => {
@@ -102,11 +121,14 @@ export default function HomePage() {
       .then(setPlans)
       .catch(() => setPlans([]))
       .finally(() => setLoadingPlans(false));
+    apiGet<PublicMetrics>('/public/metrics').then(setMetrics).catch(() => undefined);
+    apiGet<ChannelType[]>('/channel-types').then(setChannelTypes).catch(() => undefined);
   }, []);
 
   const highlightedSlug = plans.some((plan) => plan.slug === 'professional')
     ? 'professional'
     : plans[Math.floor(plans.length / 2)]?.slug;
+  const activeCompanyRatio = metrics.companies > 0 ? Math.min(1, metrics.activeCompanies / metrics.companies) : 0;
 
   return (
     <>
@@ -140,29 +162,20 @@ export default function HomePage() {
                   Start Free Trial <i className="fas fa-arrow-right ml-2"></i>
                 </Link>
                 <Link href="#features" className="btn-light-fill">
-                  See Demo <i className="fas fa-play ml-2"></i>
+                  View Features <i className="fas fa-arrow-down ml-2"></i>
                 </Link>
               </div>
-              <div className="flex items-center gap-6 mt-10">
-                <div className="flex -space-x-3">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold"
-                      style={{ background: ['#1273eb', '#ee2852', '#040836', '#1273eb'][i] }}
-                    >
-                      {['MS', 'CR', 'AB', 'JL'][i]}
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 mb-1">
-                    {[...Array(5)].map((_, i) => (
-                      <i key={i} className="fas fa-star text-yellow-400 text-sm"></i>
-                    ))}
+              <div className="grid grid-cols-3 gap-4 mt-10 max-w-lg">
+                {[
+                  { value: metrics.activeCompanies, label: 'Active companies' },
+                  { value: metrics.connectedChannels, label: 'Connected channels' },
+                  { value: metrics.messages, label: 'Messages' },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <p className="text-2xl font-extrabold font-heading text-white">{item.value.toLocaleString('pt-BR')}</p>
+                    <p className="text-white/60 text-xs">{item.label}</p>
                   </div>
-                  <p className="text-white/60 text-sm">2,500+ Companies Trust Us</p>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -175,33 +188,29 @@ export default function HomePage() {
                     </div>
                     <div>
                       <p className="text-white font-bold text-sm">Unified Inbox</p>
-                      <p className="text-white/50 text-xs">12 active conversations</p>
+                      <p className="text-white/50 text-xs">{metrics.conversations.toLocaleString('pt-BR')} conversations in the database</p>
                     </div>
                     <div className="ml-auto flex gap-2">
                       <span className="w-3 h-3 rounded-full bg-green-400 animate-pulse"></span>
                     </div>
                   </div>
 
-                  {[
-                    { name: 'João Silva', msg: 'Hi! I need help with my order...', channel: 'fab fa-whatsapp', color: '#25D366', time: '2m' },
-                    { name: 'Ana Costa', msg: 'Can you check my subscription?', channel: 'fab fa-instagram', color: '#E4405F', time: '5m' },
-                    { name: 'Pedro Lima', msg: 'Thanks for the quick response!', channel: 'fab fa-facebook-messenger', color: '#0084FF', time: '8m' },
-                  ].map((chat, i) => (
+                  {channelTypes.slice(0, 3).map((channel, i) => (
                     <div
-                      key={i}
+                      key={channel.type}
                       className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300 hover:bg-white/10 ${i === 0 ? 'bg-white/5' : ''}`}
                     >
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {chat.name.split(' ').map(n => n[0]).join('')}
+                        <i className={channel.icon}></i>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="text-white text-sm font-semibold">{chat.name}</p>
-                          <span className="text-white/40 text-xs">{chat.time}</span>
+                          <p className="text-white text-sm font-semibold">{channel.label}</p>
+                          <span className="text-white/40 text-xs">Available</span>
                         </div>
-                        <p className="text-white/50 text-xs truncate">{chat.msg}</p>
+                        <p className="text-white/50 text-xs truncate">Loaded from backend channel catalog</p>
                       </div>
-                      <i className={`${chat.channel} text-sm`} style={{ color: chat.color }}></i>
+                      <i className={`${channel.icon} text-sm`} style={{ color: channel.color }}></i>
                     </div>
                   ))}
                 </div>
@@ -211,8 +220,8 @@ export default function HomePage() {
                     <i className="fas fa-check text-green-500"></i>
                   </div>
                   <div>
-                    <p className="text-heading font-bold text-sm">Ticket Resolved</p>
-                    <p className="text-paragraph text-xs">Avg. response: 2min</p>
+                    <p className="text-heading font-bold text-sm">Connected Channels</p>
+                    <p className="text-paragraph text-xs">{metrics.connectedChannels.toLocaleString('pt-BR')} active integrations</p>
                   </div>
                 </div>
 
@@ -221,8 +230,8 @@ export default function HomePage() {
                     <i className="fas fa-chart-line text-primary"></i>
                   </div>
                   <div>
-                    <p className="text-heading font-bold text-sm">+45% Faster</p>
-                    <p className="text-paragraph text-xs">Response Time</p>
+                    <p className="text-heading font-bold text-sm">{metrics.messages.toLocaleString('pt-BR')} Messages</p>
+                    <p className="text-paragraph text-xs">Stored in PostgreSQL</p>
                   </div>
                 </div>
               </div>
@@ -241,10 +250,10 @@ export default function HomePage() {
         <div className="container mx-auto max-w-container px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { target: 2500, suffix: '+', label: 'Companies' },
-              { target: 10, suffix: 'M+', label: 'Messages Sent' },
-              { target: 98, suffix: '%', label: 'Satisfaction' },
-              { target: 24, suffix: '/7', label: 'Support' },
+              { target: metrics.companies, suffix: '', label: 'Companies' },
+              { target: metrics.messages, suffix: '', label: 'Messages Sent' },
+              { target: metrics.connectedChannels, suffix: '', label: 'Connected Channels' },
+              { target: metrics.conversations, suffix: '', label: 'Conversations' },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col items-center gap-2">
                 <AnimatedCounter target={stat.target} suffix={stat.suffix} />
@@ -337,8 +346,8 @@ export default function HomePage() {
                     <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
                       <i className="fas fa-play text-white text-2xl"></i>
                     </div>
-                    <p className="text-white font-bold font-heading text-lg">See It In Action</p>
-                    <p className="text-white/60 text-sm">Watch a 2-min demo</p>
+                    <p className="text-white font-bold font-heading text-lg">Platform Overview</p>
+                    <p className="text-white/60 text-sm">Loaded from live backend metrics</p>
                   </div>
                 </div>
               </div>
@@ -349,7 +358,7 @@ export default function HomePage() {
                     <circle cx="50" cy="50" r="42" fill="none" stroke="#f0f0f0" strokeWidth="8" />
                     <circle
                       cx="50" cy="50" r="42" fill="none" stroke="url(#grad)" strokeWidth="8"
-                      strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 42 * 0.98} ${2 * Math.PI * 42}`}
+                      strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 42 * activeCompanyRatio} ${2 * Math.PI * 42}`}
                     />
                     <defs>
                       <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -359,10 +368,10 @@ export default function HomePage() {
                     </defs>
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="gradient-text text-xl font-extrabold font-heading">98%</span>
+                    <span className="gradient-text text-xl font-extrabold font-heading">{Math.round(activeCompanyRatio * 100)}%</span>
                   </div>
                 </div>
-                <p className="text-heading font-bold text-sm text-center">Success Rate</p>
+                <p className="text-heading font-bold text-sm text-center">Active Companies</p>
               </div>
             </div>
 
@@ -502,43 +511,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section-padding bg-gray-bg">
-        <div className="container mx-auto max-w-container px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="sub-title mb-4">Testimonials</span>
-            <h2 className="text-3xl md:text-4xl font-extrabold font-heading mt-4">
-              What Our Clients Say
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((t) => (
-              <div
-                key={t.name}
-                className="card-shadow p-8 hover:-translate-y-2 transition-all duration-300"
-              >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(t.rating)].map((_, i) => (
-                    <i key={i} className="fas fa-star text-yellow-400"></i>
-                  ))}
-                </div>
-                <p className="text-paragraph leading-relaxed mb-6 italic">&ldquo;{t.quote}&rdquo;</p>
-                <div className="flex items-center gap-4 pt-6 border-t border-gray-100">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                    style={{ background: 'linear-gradient(45deg, #ee2852, #1273eb)' }}
-                  >
-                    {t.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <h5 className="font-extrabold font-heading text-heading text-sm">{t.name}</h5>
-                    <p className="text-paragraph text-xs">{t.company}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section
         className="section-padding relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #040836 0%, #1273eb 100%)' }}
@@ -553,7 +525,7 @@ export default function HomePage() {
             Ready to Transform Your Customer Communication?
           </h2>
           <p className="text-white/70 text-lg max-w-2xl mx-auto mb-10">
-            Join 2,500+ businesses already using CberHunt to deliver exceptional customer experiences across every channel.
+            {metrics.activeCompanies.toLocaleString('pt-BR')} active companies are configured to deliver customer experiences across every channel.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/register" className="btn-light-fill">

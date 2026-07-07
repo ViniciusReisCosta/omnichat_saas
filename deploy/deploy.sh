@@ -3,8 +3,8 @@
 # Run from the project root:
 #   cd /var/www/omnichat_saas && ./deploy/deploy.sh
 #
-# Assumes: .env exists, Docker/Postgres is running or available through
-# docker compose, Node 20 and pm2 are installed.
+# Assumes: .env exists, the separate NestJS backend is deployed and reachable
+# through NEXT_PUBLIC_API_URL, Node 20 and pm2 are installed.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -12,25 +12,11 @@ cd "$(dirname "$0")/.."
 echo "==> Pulling latest code"
 git pull --ff-only || echo "   (skip git pull: not a clean fast-forward)"
 
-echo "==> Ensuring database containers are running"
-docker compose up -d
-
 echo "==> Installing dependencies"
 npm ci --include=dev
 
 echo "==> Generating Prisma client"
 npx prisma generate
-
-echo "==> Applying database migrations"
-npm run db:deploy
-
-if [ "${RUN_SEED:-false}" = "true" ]; then
-  echo "==> Seeding database because RUN_SEED=true"
-  echo "    Do not enable this against production data."
-  npm run db:seed
-else
-  echo "==> Skipping database seed"
-fi
 
 echo "==> Building Next.js"
 npm run build

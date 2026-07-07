@@ -12,17 +12,6 @@ export default function Footer() {
             <p className="text-gray-400 mb-6 leading-relaxed">
               Centralize all your customer communications in a single, powerful platform. WhatsApp, Instagram, and Facebook Messenger — all in one inbox.
             </p>
-            <div className="flex gap-3">
-              {['facebook-f', 'twitter', 'linkedin-in', 'instagram'].map((icon) => (
-                <a
-                  key={icon}
-                  href="#"
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-primary transition-all duration-300"
-                >
-                  <i className={`fab fa-${icon} text-sm`}></i>
-                </a>
-              ))}
-            </div>
           </div>
 
           <div>
@@ -61,13 +50,10 @@ export default function Footer() {
                 'Analytics Dashboard',
               ].map((item) => (
                 <li key={item}>
-                  <a
-                    href="#"
-                    className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center gap-2"
-                  >
+                  <span className="text-gray-400 flex items-center gap-2">
                     <i className="fas fa-angle-right text-primary text-xs"></i>
                     {item}
-                  </a>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -114,9 +100,7 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} CberHunt. All Rights Reserved.
           </p>
           <ul className="flex gap-6">
-            <li><a href="#" className="text-gray-400 text-sm hover:text-white transition-colors">Terms</a></li>
-            <li><a href="#" className="text-gray-400 text-sm hover:text-white transition-colors">Privacy</a></li>
-            <li><a href="#" className="text-gray-400 text-sm hover:text-white transition-colors">Support</a></li>
+            <li><Link href="/contact" className="text-gray-400 text-sm hover:text-white transition-colors">Support</Link></li>
           </ul>
         </div>
       </div>

@@ -1,7 +1,7 @@
 // PM2 process configuration for the CberHunt Next.js app.
 // Start with:  pm2 start ecosystem.config.js --env production
-// The app serves both the frontend (cbersoftware.com.br) and its /api routes
-// on port 3000; nginx reverse-proxies to it.
+// The app serves the frontend on port 3000; nginx reverse-proxies to it.
+// Runtime API calls should target the separate NestJS backend through NEXT_PUBLIC_API_URL.
 module.exports = {
   apps: [
     {

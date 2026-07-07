@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import { apiGet } from '@/lib/api';
 
-const stats = [
-  { icon: 'fas fa-building', value: 2500, suffix: '+', label: 'Companies' },
-  { icon: 'fas fa-paper-plane', value: 10, suffix: 'M+', label: 'Messages Delivered' },
-  { icon: 'fas fa-heart', value: 98, suffix: '%', label: 'Client Satisfaction' },
-  { icon: 'fas fa-users', value: 150, suffix: '+', label: 'Team Members' },
-];
+type PublicMetrics = {
+  companies: number;
+  activeCompanies: number;
+  messages: number;
+  connectedChannels: number;
+  conversations: number;
+};
 
 const values = [
   {
@@ -23,7 +25,7 @@ const values = [
     icon: 'fas fa-shield-alt',
     title: 'Reliability',
     description:
-      'Our platform is built for 99.9% uptime, ensuring your customer conversations never miss a beat.',
+      'Our platform is built for dependable customer operations, keeping teams focused on active conversations.',
   },
   {
     icon: 'fas fa-eye',
@@ -39,19 +41,14 @@ const values = [
   },
 ];
 
-const team = [
-  { name: 'Lucas Ferreira', role: 'CEO & Founder', initials: 'LF' },
-  { name: 'Ana Oliveira', role: 'CTO', initials: 'AO' },
-  { name: 'Rafael Santos', role: 'Head of Product', initials: 'RS' },
-  { name: 'Camila Costa', role: 'Lead Designer', initials: 'CC' },
-];
-
 function AnimatedCounter({ target, suffix }: { target: number; suffix: string }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
   useEffect(() => {
+    started.current = false;
+    setCount(0);
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !started.current) {
@@ -85,6 +82,25 @@ function AnimatedCounter({ target, suffix }: { target: number; suffix: string })
 }
 
 export default function AboutPage() {
+  const [metrics, setMetrics] = useState<PublicMetrics>({
+    companies: 0,
+    activeCompanies: 0,
+    messages: 0,
+    connectedChannels: 0,
+    conversations: 0,
+  });
+
+  useEffect(() => {
+    apiGet<PublicMetrics>('/public/metrics').then(setMetrics).catch(() => undefined);
+  }, []);
+
+  const stats = [
+    { icon: 'fas fa-building', value: metrics.companies, suffix: '', label: 'Companies' },
+    { icon: 'fas fa-paper-plane', value: metrics.messages, suffix: '', label: 'Messages Delivered' },
+    { icon: 'fas fa-plug', value: metrics.connectedChannels, suffix: '', label: 'Connected Channels' },
+    { icon: 'fas fa-comments', value: metrics.conversations, suffix: '', label: 'Conversations' },
+  ];
+
   return (
     <>
       <Header />
@@ -108,8 +124,8 @@ export default function AboutPage() {
                   <i className="fas fa-users text-primary text-xl" />
                 </div>
                 <div>
-                  <div className="text-2xl font-extrabold font-heading text-heading">2,500+</div>
-                  <div className="text-paragraph text-sm">Happy Clients</div>
+                  <div className="text-2xl font-extrabold font-heading text-heading">{metrics.activeCompanies.toLocaleString('pt-BR')}</div>
+                  <div className="text-paragraph text-sm">Active Companies</div>
                 </div>
               </div>
               <div className="absolute -top-6 -left-6 bg-white rounded-card shadow-card p-5 flex items-center gap-4">
@@ -117,8 +133,8 @@ export default function AboutPage() {
                   <i className="fas fa-chart-line text-secondary text-xl" />
                 </div>
                 <div>
-                  <div className="text-2xl font-extrabold font-heading text-heading">98%</div>
-                  <div className="text-paragraph text-sm">Satisfaction</div>
+                  <div className="text-2xl font-extrabold font-heading text-heading">{metrics.messages.toLocaleString('pt-BR')}</div>
+                  <div className="text-paragraph text-sm">Messages</div>
                 </div>
               </div>
             </div>
@@ -139,7 +155,7 @@ export default function AboutPage() {
                 we power the conversations that build lasting relationships.
               </p>
               <div className="space-y-4">
-                {['Unified Multi-Channel Platform', '24/7 Dedicated Support'].map((item) => (
+                {['Unified Multi-Channel Platform', 'Database-backed Workspaces'].map((item) => (
                   <div key={item} className="flex items-center gap-3">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                       <i className="fas fa-check text-white text-xs" />
@@ -199,60 +215,13 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="bg-gray-bg py-[120px]">
-        <div className="container mx-auto max-w-container px-4">
-          <div className="text-center max-w-[600px] mx-auto mb-16">
-            <span className="sub-title mb-3">Team Members</span>
-            <h2 className="text-3xl md:text-[42px] font-extrabold font-heading text-heading mt-3 mb-5 leading-tight">
-              Meet Our Experts
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member) => (
-              <div
-                key={member.name}
-                className="bg-white rounded-card shadow-card p-8 text-center group hover:-translate-y-2 transition-all duration-300"
-              >
-                <div
-                  className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6"
-                  style={{
-                    background: 'linear-gradient(45deg, #ee2852 0%, #1273eb 50%)',
-                  }}
-                >
-                  <span className="text-2xl font-extrabold font-heading text-white">
-                    {member.initials}
-                  </span>
-                </div>
-                <h4 className="text-lg font-extrabold font-heading text-heading mb-1">
-                  {member.name}
-                </h4>
-                <p className="text-paragraph text-sm mb-5">{member.role}</p>
-                <div className="flex justify-center gap-3">
-                  {['facebook-f', 'twitter', 'linkedin-in'].map((icon) => (
-                    <a
-                      key={icon}
-                      href="#"
-                      className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-paragraph hover:bg-primary hover:text-white transition-all duration-300"
-                    >
-                      <i className={`fab fa-${icon} text-xs`} />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section className="bg-primary py-20">
         <div className="container mx-auto max-w-container px-4 text-center">
           <h2 className="text-3xl md:text-[42px] font-extrabold font-heading text-white mb-5 leading-tight">
             Ready to Get Started?
           </h2>
           <p className="text-white/80 max-w-[500px] mx-auto mb-10">
-            Join thousands of companies already using CberHunt to transform their customer
-            communication.
+            {metrics.activeCompanies.toLocaleString('pt-BR')} active companies are configured in CberHunt to transform their customer communication.
           </p>
           <a href="/register" className="btn-light-fill">
             Start Your Free Trial
