@@ -1,4 +1,4 @@
-function headers(): HeadersInit {
+function jsonHeaders(): HeadersInit {
   return { 'Content-Type': 'application/json' };
 }
 
@@ -25,14 +25,14 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export async function apiGet<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(apiPath(path), { headers: headers(), credentials: 'include', cache: 'no-store' });
+  const res = await fetch(apiPath(path), { credentials: 'include', cache: 'no-store' });
   return handleResponse<T>(res);
 }
 
 export async function apiPost<T = unknown>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(apiPath(path), {
     method: 'POST',
-    headers: headers(),
+    headers: jsonHeaders(),
     credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -42,7 +42,7 @@ export async function apiPost<T = unknown>(path: string, body?: unknown): Promis
 export async function apiPut<T = unknown>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(apiPath(path), {
     method: 'PUT',
-    headers: headers(),
+    headers: jsonHeaders(),
     credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -50,6 +50,6 @@ export async function apiPut<T = unknown>(path: string, body?: unknown): Promise
 }
 
 export async function apiDelete<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(apiPath(path), { method: 'DELETE', headers: headers(), credentials: 'include' });
+  const res = await fetch(apiPath(path), { method: 'DELETE', credentials: 'include' });
   return handleResponse<T>(res);
 }
