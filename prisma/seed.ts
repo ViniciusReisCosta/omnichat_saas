@@ -8,7 +8,7 @@ async function main() {
     where: { slug: 'starter' },
     update: {
       name: 'Starter',
-      price: 149,
+      price: 97,
       maxAgents: 3,
       maxChannels: 2,
       maxMessages: 1000,
@@ -18,7 +18,7 @@ async function main() {
     create: {
       name: 'Starter',
       slug: 'starter',
-      price: 149,
+      price: 97,
       maxAgents: 3,
       maxChannels: 2,
       maxMessages: 1000,
@@ -31,7 +31,7 @@ async function main() {
     where: { slug: 'professional' },
     update: {
       name: 'Professional',
-      price: 399,
+      price: 197,
       maxAgents: 10,
       maxChannels: 5,
       maxMessages: 10000,
@@ -41,7 +41,7 @@ async function main() {
     create: {
       name: 'Professional',
       slug: 'professional',
-      price: 399,
+      price: 197,
       maxAgents: 10,
       maxChannels: 5,
       maxMessages: 10000,
@@ -54,7 +54,7 @@ async function main() {
     where: { slug: 'enterprise' },
     update: {
       name: 'Enterprise',
-      price: 999,
+      price: 1000,
       maxAgents: 999,
       maxChannels: 10,
       maxMessages: 999999,
@@ -64,7 +64,7 @@ async function main() {
     create: {
       name: 'Enterprise',
       slug: 'enterprise',
-      price: 999,
+      price: 1000,
       maxAgents: 999,
       maxChannels: 10,
       maxMessages: 999999,
@@ -98,4 +98,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-

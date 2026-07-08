@@ -6,7 +6,7 @@ const plans = [
   {
     name: 'Starter',
     slug: 'starter',
-    price: 149,
+    price: 97,
     maxAgents: 3,
     maxChannels: 2,
     maxMessages: 1000,
@@ -16,7 +16,7 @@ const plans = [
   {
     name: 'Professional',
     slug: 'professional',
-    price: 399,
+    price: 197,
     maxAgents: 10,
     maxChannels: 5,
     maxMessages: 10000,
@@ -26,7 +26,7 @@ const plans = [
   {
     name: 'Enterprise',
     slug: 'enterprise',
-    price: 999,
+    price: 1000,
     maxAgents: 999,
     maxChannels: 10,
     maxMessages: 999999,
