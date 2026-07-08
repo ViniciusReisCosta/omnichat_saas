@@ -30,6 +30,7 @@ Backend variables:
 ```env
 PORT=4000
 FRONTEND_ORIGIN=https://your-domain.com
+FRONTEND_ORIGIN_SUFFIXES=your-vercel-team.vercel.app
 APP_URL=https://your-domain.com
 DATABASE_URL=postgresql://...
 JWT_SECRET=replace-with-a-long-random-secret
