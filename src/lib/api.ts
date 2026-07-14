@@ -2,7 +2,7 @@ function jsonHeaders(): HeadersInit {
   return { 'Content-Type': 'application/json' };
 }
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+const API_BASE_URL = (process.env.NEXT_PUBLIC_DIRECT_API_URL || '').replace(/\/$/, '');
 
 export function apiPath(path: string) {
   const normalized = path.startsWith('/api/')

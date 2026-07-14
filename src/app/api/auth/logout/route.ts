@@ -1,16 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { enforceSameOrigin } from '@/lib/access';
-import { getSessionCookieName, getSessionCookieOptions } from '@/lib/auth';
+import { proxyBackendRequest } from '@/lib/backend-api';
 
 export async function POST(req: NextRequest) {
   const originError = enforceSameOrigin(req);
   if (originError) return originError;
 
-  const response = NextResponse.json({ success: true });
-  response.cookies.set(getSessionCookieName(), '', {
-    ...getSessionCookieOptions(),
-    maxAge: 0,
-  });
-
-  return response;
+  return proxyBackendRequest(req, '/auth/logout');
 }

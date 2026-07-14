@@ -19,6 +19,26 @@ type Plan = {
   features: string;
 };
 
+function formatCheckoutError(message: string) {
+  if (
+    message.includes('STRIPE_SECRET_KEY') ||
+    message.toLowerCase().includes('stripe checkout is not configured') ||
+    message.toLowerCase().includes('stripe is not configured')
+  ) {
+    return 'Checkout Stripe ainda nao esta configurado no backend. Configure STRIPE_SECRET_KEY no Heroku e redeploye a API.';
+  }
+
+  if (
+    message.includes('STRIPE_PRICE_') ||
+    message.toLowerCase().includes('stripe price is not configured') ||
+    message.toLowerCase().includes('must be a Price ID')
+  ) {
+    return 'O Price ID da Stripe para este plano ainda nao esta configurado. Configure STRIPE_PRICE_STARTER, STRIPE_PRICE_PROFESSIONAL e STRIPE_PRICE_ENTERPRISE no Heroku e rode db:prepare.';
+  }
+
+  return message;
+}
+
 function BillingContent() {
   const { user, loading: authLoading, isAuthenticated, hasActiveAccess, refreshUser, logout } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -73,7 +93,8 @@ function BillingContent() {
       const data = await apiPost<{ url: string }>('/payments/subscribe', { planSlug: selectedPlan });
       window.location.href = data.url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start checkout');
+      const message = err instanceof Error ? err.message : 'Failed to start checkout';
+      setError(formatCheckoutError(message));
       setSubmitting(false);
     }
   };
