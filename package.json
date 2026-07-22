@@ -7,37 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
-    "db:migrate": "npx prisma migrate dev",
-    "db:deploy": "npx prisma migrate deploy",
-    "db:seed": "npx tsx prisma/seed.ts",
-    "db:bootstrap": "npx tsx scripts/bootstrap-production.ts",
-    "db:reset": "npx prisma migrate reset --force",
-    "db:studio": "npx prisma studio",
     "prod:check-env": "npx tsx scripts/check-production-env.ts",
-    "prod:verify": "npm run prod:check-env && npx prisma validate && npx prisma generate && npm run build"
+    "prod:verify": "npm run prod:check-env && npm run build"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
-    "bcryptjs": "^3.0.3",
-    "dotenv": "^17.4.2",
-    "jsonwebtoken": "^9.0.3",
     "next": "^14.2.0",
-    "prisma": "^6.19.3",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "stripe": "^22.1.0"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
-    "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   }

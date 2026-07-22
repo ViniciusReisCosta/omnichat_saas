@@ -2,18 +2,12 @@ function jsonHeaders(): HeadersInit {
   return { 'Content-Type': 'application/json' };
 }
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_DIRECT_API_URL || '').replace(/\/$/, '');
-
 export function apiPath(path: string) {
-  const normalized = path.startsWith('/api/')
+  return path.startsWith('/api/')
     ? path
     : path === '/api'
       ? path
       : `/api${path.startsWith('/') ? path : `/${path}`}`;
-
-  if (!API_BASE_URL) return normalized;
-  if (API_BASE_URL.endsWith('/api')) return `${API_BASE_URL}${normalized.replace(/^\/api/, '')}`;
-  return `${API_BASE_URL}${normalized}`;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {

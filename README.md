@@ -30,9 +30,9 @@ npm install
 2. Create `.env` from `.env.example` and set local values:
 
 ```env
-JWT_SECRET="replace-with-a-long-local-secret"
 APP_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+BACKEND_API_URL=http://localhost:4000
 NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
 
@@ -86,26 +86,9 @@ npm run start
 | `npm run build` | Build production app |
 | `npm run start` | Start production server after build |
 | `npm run lint` | Run Next.js lint command |
-| `npm run postinstall` | Generate Prisma Client for legacy API routes |
-| `npm run db:migrate` | Legacy Prisma migration command |
-| `npm run db:deploy` | Legacy Prisma deploy command |
-| `npm run db:bootstrap` | Legacy Prisma bootstrap command |
-| `npm run db:seed` | Legacy Prisma structural seed command |
-| `npm run db:reset` | Destructive legacy local database reset |
-| `npm run db:studio` | Open Prisma Studio for legacy schema |
 | `npm run prod:check-env` | Validate required production environment variables |
-| `npm run prod:verify` | Validate env, Prisma Client/schema, and production build |
-
-## Bootstrap Account
-
-After `npm run db:seed`:
-
-| Email | Password | Role |
-|-------|----------|------|
-| `admin@cberhunt.com` | `admin123` | Super admin |
+| `npm run prod:verify` | Validate env and production build |
 
 ## Data Notes
 
 Operational dashboard screens are wired to database-backed NestJS API routes. Notification preferences, API keys, invoice history, channel catalog, quick replies, and public metrics are backed by real endpoints.
-
-The legacy Prisma seed also only upserts plans and a super admin. It does not create demo companies, clients, conversations, or messages.

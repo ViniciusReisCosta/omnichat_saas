@@ -15,9 +15,6 @@ git pull --ff-only || echo "   (skip git pull: not a clean fast-forward)"
 echo "==> Installing dependencies"
 npm ci --include=dev
 
-echo "==> Generating Prisma client"
-npx prisma generate
-
 echo "==> Building Next.js"
 npm run build
 
