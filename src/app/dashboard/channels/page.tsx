@@ -21,7 +21,7 @@ type ChannelType = {
   color: string;
 };
 
-const emptyForm = { type: '', name: '', accountId: '' };
+const emptyForm = { type: '', name: '', accountId: '', accessToken: '' };
 
 function channelMeta(type: string, channelTypes: ChannelType[]) {
   return channelTypes.find((item) => item.type === type) || { label: type, icon: 'fas fa-plug', color: '#1273eb' };
@@ -121,7 +121,7 @@ export default function ChannelsPage() {
 
       {showForm && canCreateChannel && (
         <form onSubmit={handleCreate} className="bg-white rounded-[10px] shadow-card p-5">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <select
               value={form.type}
               onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}
@@ -141,7 +141,14 @@ export default function ChannelsPage() {
             <input
               value={form.accountId}
               onChange={(event) => setForm((current) => ({ ...current, accountId: event.target.value }))}
-              placeholder="Account ID"
+              placeholder={form.type === 'whatsapp' ? 'Phone number ID' : 'Account ID'}
+              className="h-10 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+            <input
+              type="password"
+              value={form.accessToken}
+              onChange={(event) => setForm((current) => ({ ...current, accessToken: event.target.value }))}
+              placeholder={form.type === 'whatsapp' ? 'Access token' : 'Access token'}
               className="h-10 px-4 rounded-lg border border-gray-200 text-sm text-heading focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
             <button
