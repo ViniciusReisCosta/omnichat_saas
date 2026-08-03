@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type Company = {
   id: string;
@@ -40,6 +42,7 @@ function planClass(plan: string) {
 
 export default function CompaniesPage() {
   const { user } = useAuth();
+  const { toast } = useFeedback();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -58,7 +61,9 @@ export default function CompaniesPage() {
       const data = await apiGet<Company[]>('/companies');
       setCompanies(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load companies');
+      const message = userErrorMessage(err, 'Failed to load companies');
+      setError(message);
+      toast({ type: 'error', title: 'Companies not loaded', message });
     } finally {
       setLoading(false);
     }
@@ -87,8 +92,11 @@ export default function CompaniesPage() {
       setForm(emptyForm);
       setShowForm(false);
       await loadCompanies();
+      toast({ type: 'success', title: 'Company created' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create company');
+      const message = userErrorMessage(err, 'Failed to create company');
+      setError(message);
+      toast({ type: 'error', title: 'Company not created', message });
     } finally {
       setSubmitting(false);
     }
@@ -98,8 +106,11 @@ export default function CompaniesPage() {
     try {
       const updated = await apiPut<Company>(`/companies/${company.id}`, { active: !company.active });
       setCompanies((current) => current.map((item) => item.id === company.id ? { ...item, ...updated } : item));
+      toast({ type: 'success', title: updated.active ? 'Company activated' : 'Company deactivated' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update company');
+      const message = userErrorMessage(err, 'Failed to update company');
+      setError(message);
+      toast({ type: 'error', title: 'Company not updated', message });
     }
   };
 

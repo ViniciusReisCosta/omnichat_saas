@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import { useFeedback } from '@/contexts/FeedbackContext';
 
 const contactCards = [
   {
@@ -24,6 +25,7 @@ const contactCards = [
 ];
 
 export default function ContactPage() {
+  const { toast } = useFeedback();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -36,6 +38,7 @@ export default function ContactPage() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
+    toast({ type: 'success', title: 'Message sent', message: "We'll be in touch soon." });
     setTimeout(() => setSubmitted(false), 3000);
     setForm({ name: '', email: '', phone: '', subject: '', message: '' });
   };

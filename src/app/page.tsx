@@ -5,6 +5,8 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useState, useEffect, useRef } from 'react';
 import { apiGet } from '@/lib/api';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type HomePlan = {
   id: string;
@@ -105,6 +107,7 @@ function parsePlanFeatures(value: string) {
 }
 
 export default function HomePage() {
+  const { toast } = useFeedback();
   const [plans, setPlans] = useState<HomePlan[]>([]);
   const [metrics, setMetrics] = useState<PublicMetrics>({
     companies: 0,
@@ -119,11 +122,34 @@ export default function HomePage() {
   useEffect(() => {
     apiGet<HomePlan[]>('/plans')
       .then(setPlans)
-      .catch(() => setPlans([]))
+      .catch((err) => {
+        setPlans([]);
+        toast({
+          type: 'warning',
+          title: 'Plans not loaded',
+          message: userErrorMessage(err, 'Pricing data is unavailable right now.'),
+        });
+      })
       .finally(() => setLoadingPlans(false));
-    apiGet<PublicMetrics>('/public/metrics').then(setMetrics).catch(() => undefined);
-    apiGet<ChannelType[]>('/channel-types').then(setChannelTypes).catch(() => undefined);
-  }, []);
+    apiGet<PublicMetrics>('/public/metrics')
+      .then(setMetrics)
+      .catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Metrics not loaded',
+          message: userErrorMessage(err, 'Public metrics are unavailable right now.'),
+        });
+      });
+    apiGet<ChannelType[]>('/channel-types')
+      .then(setChannelTypes)
+      .catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Channels not loaded',
+          message: userErrorMessage(err, 'Channel catalog is unavailable right now.'),
+        });
+      });
+  }, [toast]);
 
   const highlightedSlug = plans.some((plan) => plan.slug === 'professional')
     ? 'professional'

@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeedback } from "@/contexts/FeedbackContext";
+import { userErrorMessage } from "@/lib/feedback-messages";
 
 type Channel = {
   id: string;
@@ -49,6 +51,7 @@ function tokenLabel(type: string) {
 
 export default function ChannelsPage() {
   const { user } = useAuth();
+  const { toast, confirm } = useFeedback();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [channelTypes, setChannelTypes] = useState<ChannelType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +73,9 @@ export default function ChannelsPage() {
       const data = await apiGet<Channel[]>("/channels");
       setChannels(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load channels");
+      const message = userErrorMessage(err, "Failed to load channels");
+      setError(message);
+      toast({ type: "error", title: "Channels not loaded", message });
     } finally {
       setLoading(false);
     }
@@ -86,8 +91,14 @@ export default function ChannelsPage() {
           type: current.type || data[0]?.type || "",
         }));
       }),
-    ]).catch(() => undefined);
-  }, []);
+    ]).catch((err) => {
+      toast({
+        type: "warning",
+        title: "Channel types unavailable",
+        message: userErrorMessage(err, "Some channel data could not be loaded."),
+      });
+    });
+  }, [toast]);
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -107,8 +118,11 @@ export default function ChannelsPage() {
       setForm(emptyForm);
       setShowForm(false);
       await loadChannels();
+      toast({ type: "success", title: "Channel created" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create channel");
+      const message = userErrorMessage(err, "Failed to create channel");
+      setError(message);
+      toast({ type: "error", title: "Channel not created", message });
     } finally {
       setSubmitting(false);
     }
@@ -164,8 +178,11 @@ export default function ChannelsPage() {
         ),
       );
       cancelEdit();
+      toast({ type: "success", title: "Channel updated" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update channel");
+      const message = userErrorMessage(err, "Failed to update channel");
+      setError(message);
+      toast({ type: "error", title: "Channel not updated", message });
     } finally {
       setEditSubmitting(false);
     }
@@ -181,21 +198,36 @@ export default function ChannelsPage() {
           item.id === channel.id ? { ...item, ...updated } : item,
         ),
       );
+      toast({
+        type: "success",
+        title: updated.connected ? "Channel connected" : "Channel disconnected",
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update channel");
+      const message = userErrorMessage(err, "Failed to update channel");
+      setError(message);
+      toast({ type: "error", title: "Channel status not updated", message });
     }
   };
 
   const handleDelete = async (channel: Channel) => {
-    if (!confirm(`Delete ${channel.name}?`)) return;
+    const confirmed = await confirm({
+      title: "Delete channel",
+      message: `Delete ${channel.name}? This action cannot be undone.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       await apiDelete(`/channels/${channel.id}`);
       setChannels((current) =>
         current.filter((item) => item.id !== channel.id),
       );
+      toast({ type: "success", title: "Channel deleted" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete channel");
+      const message = userErrorMessage(err, "Failed to delete channel");
+      setError(message);
+      toast({ type: "error", title: "Channel not deleted", message });
     }
   };
 

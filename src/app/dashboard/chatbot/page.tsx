@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 interface Rule {
   id: string;
@@ -11,6 +13,7 @@ interface Rule {
 }
 
 export default function ChatbotPage() {
+  const { toast, confirm } = useFeedback();
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -24,7 +27,13 @@ export default function ChatbotPage() {
     try {
       const data = await apiGet<Rule[]>('/chatbot/rules');
       setRules(data);
-    } catch { /* empty */ } finally {
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Rules not loaded',
+        message: userErrorMessage(err, 'Failed to load chatbot rules'),
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -32,7 +41,14 @@ export default function ChatbotPage() {
   useEffect(() => { fetchRules(); }, []);
 
   const handleSubmit = async () => {
-    if (!keyword.trim() || !response.trim()) return;
+    if (!keyword.trim() || !response.trim()) {
+      toast({
+        type: 'warning',
+        title: 'Rule incomplete',
+        message: 'Add keywords and an automatic response before saving.',
+      });
+      return;
+    }
     try {
       if (editId) {
         await apiPut(`/chatbot/rules/${editId}`, { keyword, response });
@@ -44,25 +60,65 @@ export default function ChatbotPage() {
       setEditId(null);
       setShowForm(false);
       fetchRules();
-    } catch { /* empty */ }
+      toast({ type: 'success', title: editId ? 'Rule updated' : 'Rule created' });
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: editId ? 'Rule not updated' : 'Rule not created',
+        message: userErrorMessage(err, 'Failed to save chatbot rule'),
+      });
+    }
   };
 
   const handleToggle = async (rule: Rule) => {
-    await apiPut(`/chatbot/rules/${rule.id}`, { active: !rule.active });
-    fetchRules();
+    try {
+      await apiPut(`/chatbot/rules/${rule.id}`, { active: !rule.active });
+      fetchRules();
+      toast({ type: 'success', title: !rule.active ? 'Rule activated' : 'Rule deactivated' });
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Rule not updated',
+        message: userErrorMessage(err, 'Failed to update chatbot rule'),
+      });
+    }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this rule?')) return;
-    await apiDelete(`/chatbot/rules/${id}`);
-    fetchRules();
+    const confirmed = await confirm({
+      title: 'Delete rule',
+      message: 'Delete this chatbot rule? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    try {
+      await apiDelete(`/chatbot/rules/${id}`);
+      fetchRules();
+      toast({ type: 'success', title: 'Rule deleted' });
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Rule not deleted',
+        message: userErrorMessage(err, 'Failed to delete chatbot rule'),
+      });
+    }
   };
 
   const handleTest = () => {
-    if (!testInput.trim()) { setTestResult(null); return; }
+    if (!testInput.trim()) {
+      setTestResult(null);
+      toast({ type: 'warning', title: 'Type a test message first' });
+      return;
+    }
     const lower = testInput.toLowerCase();
     const match = rules.find((r) => r.active && r.keyword.toLowerCase().split(',').map((k) => k.trim()).some((kw) => lower.includes(kw)));
     setTestResult(match ? match.response : 'No matching rule found.');
+    toast({
+      type: match ? 'success' : 'info',
+      title: match ? 'Matching rule found' : 'No matching rule',
+    });
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><i className="fas fa-spinner fa-spin text-primary text-2xl"></i></div>;

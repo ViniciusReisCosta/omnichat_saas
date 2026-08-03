@@ -12,10 +12,17 @@ export function apiPath(path: string) {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('Sessao expirada. Entre novamente para continuar.');
+    }
+    if (res.status === 403) {
+      throw new Error('Voce nao tem permissao para executar esta acao.');
+    }
     const data = await res.json().catch(() => ({ error: `Request failed: ${res.status}` }));
-    throw new Error(data.error || `Request failed: ${res.status}`);
+    throw new Error(data.error || data.message || `Request failed: ${res.status}`);
   }
-  return res.json();
+  const text = await res.text();
+  return text ? JSON.parse(text) : (undefined as T);
 }
 
 export async function apiGet<T = unknown>(path: string): Promise<T> {

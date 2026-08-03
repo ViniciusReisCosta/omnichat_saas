@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiDelete, apiGet, apiPath, apiPost, apiPut } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type CompanySettings = {
   id: string;
@@ -99,6 +101,7 @@ function normalizePlanName(plan: string) {
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
+  const { toast, confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState('General');
   const [company, setCompany] = useState<CompanySettings | null>(null);
   const [form, setForm] = useState<CompanySettings>(emptyCompany);
@@ -142,9 +145,13 @@ export default function SettingsPage() {
         setApiKeys(apiKeysData);
         setInvoices(invoicesData);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load settings'))
+      .catch((err) => {
+        const message = userErrorMessage(err, 'Failed to load settings');
+        setError(message);
+        toast({ type: 'error', title: 'Settings not loaded', message });
+      })
       .finally(() => setLoading(false));
-  }, [user?.company?.id]);
+  }, [toast, user?.company?.id]);
 
   const currentPlan = useMemo(() => plans.find((plan) => plan.slug === company?.plan), [company?.plan, plans]);
   const webhookPath = apiPath('/payments/webhook');
@@ -171,9 +178,18 @@ export default function SettingsPage() {
       setCompany(updated);
       setForm({ ...emptyCompany, ...updated });
       setSuccess('Settings saved.');
-      await refreshUser().catch(() => undefined);
+      toast({ type: 'success', title: 'Settings saved' });
+      await refreshUser().catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Session data not refreshed',
+          message: userErrorMessage(err, 'Settings were saved, but user data could not be refreshed.'),
+        });
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save settings');
+      const message = userErrorMessage(err, 'Failed to save settings');
+      setError(message);
+      toast({ type: 'error', title: 'Settings not saved', message });
     } finally {
       setSaving(false);
     }
@@ -181,22 +197,65 @@ export default function SettingsPage() {
 
   const updateNotificationPreference = async (key: keyof Omit<NotificationPreferences, 'id'>) => {
     if (!notificationPreferences) return;
-    const updated = await apiPut<NotificationPreferences>('/notification-preferences', {
-      ...notificationPreferences,
-      [key]: !notificationPreferences[key],
-    });
-    setNotificationPreferences(updated);
+    setError('');
+    setSuccess('');
+    try {
+      const updated = await apiPut<NotificationPreferences>('/notification-preferences', {
+        ...notificationPreferences,
+        [key]: !notificationPreferences[key],
+      });
+      setNotificationPreferences(updated);
+      setSuccess('Notification preferences saved.');
+      toast({ type: 'success', title: 'Notification preference saved' });
+    } catch (err) {
+      const message = userErrorMessage(err, 'Failed to save notification preference');
+      setError(message);
+      toast({ type: 'error', title: 'Preference not saved', message });
+    }
   };
 
   const createApiKey = async () => {
-    const created = await apiPost<CreatedApiKey>('/api-keys', { name: apiKeyName });
-    setCreatedApiKey(created);
-    setApiKeys((current) => [created, ...current]);
+    if (!apiKeyName.trim()) {
+      toast({ type: 'warning', title: 'API key name is required' });
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    try {
+      const created = await apiPost<CreatedApiKey>('/api-keys', { name: apiKeyName.trim() });
+      setCreatedApiKey(created);
+      setApiKeys((current) => [created, ...current]);
+      setSuccess('API key created. Copy the token now.');
+      toast({ type: 'success', title: 'API key created', message: 'Copy the token now. It will not be shown again.' });
+    } catch (err) {
+      const message = userErrorMessage(err, 'Failed to create API key');
+      setError(message);
+      toast({ type: 'error', title: 'API key not created', message });
+    }
   };
 
   const revokeApiKey = async (id: string) => {
-    await apiDelete(`/api-keys/${id}`);
-    setApiKeys((current) => current.map((key) => key.id === id ? { ...key, active: false, revokedAt: new Date().toISOString() } : key));
+    const confirmed = await confirm({
+      title: 'Revoke API key',
+      message: 'Revoke this API key? Integrations using it will stop working.',
+      confirmLabel: 'Revoke',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    setError('');
+    setSuccess('');
+    try {
+      await apiDelete(`/api-keys/${id}`);
+      setApiKeys((current) => current.map((key) => key.id === id ? { ...key, active: false, revokedAt: new Date().toISOString() } : key));
+      setSuccess('API key revoked.');
+      toast({ type: 'success', title: 'API key revoked' });
+    } catch (err) {
+      const message = userErrorMessage(err, 'Failed to revoke API key');
+      setError(message);
+      toast({ type: 'error', title: 'API key not revoked', message });
+    }
   };
 
   if (loading) {

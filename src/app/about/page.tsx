@@ -5,6 +5,8 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import { apiGet } from '@/lib/api';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type PublicMetrics = {
   companies: number;
@@ -82,6 +84,7 @@ function AnimatedCounter({ target, suffix }: { target: number; suffix: string })
 }
 
 export default function AboutPage() {
+  const { toast } = useFeedback();
   const [metrics, setMetrics] = useState<PublicMetrics>({
     companies: 0,
     activeCompanies: 0,
@@ -91,8 +94,16 @@ export default function AboutPage() {
   });
 
   useEffect(() => {
-    apiGet<PublicMetrics>('/public/metrics').then(setMetrics).catch(() => undefined);
-  }, []);
+    apiGet<PublicMetrics>('/public/metrics')
+      .then(setMetrics)
+      .catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Metrics not loaded',
+          message: userErrorMessage(err, 'Public metrics are unavailable right now.'),
+        });
+      });
+  }, [toast]);
 
   const stats = [
     { icon: 'fas fa-building', value: metrics.companies, suffix: '', label: 'Companies' },

@@ -1,12 +1,14 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/contexts/FeedbackContext';
 import { apiGet, apiPost } from '@/lib/api';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type Plan = {
   id: string;
@@ -41,11 +43,14 @@ function formatCheckoutError(message: string) {
 
 function BillingContent() {
   const { user, loading: authLoading, isAuthenticated, hasActiveAccess, refreshUser, logout } = useAuth();
+  const { toast } = useFeedback();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState('starter');
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const checkoutNoticeShown = useRef<string | null>(null);
+  const paymentRefreshErrorShown = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const checkoutState = searchParams.get('checkout');
@@ -60,9 +65,13 @@ function BillingContent() {
         setPlans(data);
         if (data[0]) setSelectedPlan(data[0].slug);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load plans'))
+      .catch((err) => {
+        const message = userErrorMessage(err, 'Failed to load plans');
+        setError(message);
+        toast({ type: 'error', title: 'Plans not loaded', message });
+      })
       .finally(() => setLoadingPlans(false));
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (hasActiveAccess) router.push('/dashboard');
@@ -70,14 +79,50 @@ function BillingContent() {
 
   useEffect(() => {
     if (checkoutState === 'success') {
+      if (checkoutNoticeShown.current !== checkoutState) {
+        checkoutNoticeShown.current = checkoutState;
+        toast({
+          type: 'info',
+          title: 'Pagamento enviado',
+          message: 'Aguardando confirmacao do Stripe para liberar o acesso.',
+        });
+      }
       const timer = setInterval(() => {
-        refreshUser().catch(() => undefined);
+        refreshUser().catch((err) => {
+          if (!paymentRefreshErrorShown.current) {
+            paymentRefreshErrorShown.current = true;
+            toast({
+              type: 'warning',
+              title: 'Pagamento ainda nao confirmado',
+              message: userErrorMessage(err, 'Nao foi possivel atualizar o status do pagamento agora.'),
+            });
+          }
+        });
       }, 3000);
 
-      refreshUser().catch(() => undefined);
+      refreshUser().catch((err) => {
+        if (!paymentRefreshErrorShown.current) {
+          paymentRefreshErrorShown.current = true;
+          toast({
+            type: 'warning',
+            title: 'Pagamento ainda nao confirmado',
+            message: userErrorMessage(err, 'Nao foi possivel atualizar o status do pagamento agora.'),
+          });
+        }
+      });
       return () => clearInterval(timer);
     }
-  }, [checkoutState, refreshUser]);
+    if (checkoutState === 'canceled') {
+      if (checkoutNoticeShown.current !== checkoutState) {
+        checkoutNoticeShown.current = checkoutState;
+        toast({
+          type: 'warning',
+          title: 'Checkout cancelado',
+          message: 'Voce pode tentar novamente quando quiser.',
+        });
+      }
+    }
+  }, [checkoutState, refreshUser, toast]);
 
   const currentPlan = useMemo(
     () => plans.find((plan) => plan.slug === selectedPlan),
@@ -86,15 +131,27 @@ function BillingContent() {
   const canManageBilling = user?.role === 'company_admin' || user?.role === 'super_admin';
 
   const handleCheckout = async () => {
+    if (!selectedPlan) {
+      toast({ type: 'warning', title: 'Selecione um plano antes de continuar' });
+      return;
+    }
+
     setSubmitting(true);
     setError('');
+    toast({ type: 'info', title: 'Abrindo checkout', message: 'Voce sera redirecionado para o Stripe.' });
 
     try {
       const data = await apiPost<{ url: string }>('/payments/subscribe', { planSlug: selectedPlan });
       window.location.href = data.url;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to start checkout';
-      setError(formatCheckoutError(message));
+      const formattedMessage = formatCheckoutError(message);
+      setError(formattedMessage);
+      toast({
+        type: 'error',
+        title: 'Checkout nao iniciado',
+        message: userErrorMessage(new Error(formattedMessage), 'Nao foi possivel iniciar o checkout.'),
+      });
       setSubmitting(false);
     }
   };

@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type Agent = {
   id: string;
@@ -29,6 +31,7 @@ function roleLabel(role: string) {
 
 export default function AgentsPage() {
   const { user } = useAuth();
+  const { toast, confirm } = useFeedback();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,7 +47,9 @@ export default function AgentsPage() {
       const data = await apiGet<Agent[]>('/agents');
       setAgents(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load agents');
+      const message = userErrorMessage(err, 'Failed to load agents');
+      setError(message);
+      toast({ type: 'error', title: 'Agents not loaded', message });
     } finally {
       setLoading(false);
     }
@@ -73,8 +78,11 @@ export default function AgentsPage() {
       setForm(emptyForm);
       setShowForm(false);
       await loadAgents();
+      toast({ type: 'success', title: 'Agent invited' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create agent');
+      const message = userErrorMessage(err, 'Failed to create agent');
+      setError(message);
+      toast({ type: 'error', title: 'Agent not invited', message });
     } finally {
       setSubmitting(false);
     }
@@ -84,19 +92,31 @@ export default function AgentsPage() {
     try {
       await apiPut(`/agents/${agent.id}`, { online: !agent.online });
       setAgents((current) => current.map((item) => item.id === agent.id ? { ...item, online: !agent.online } : item));
+      toast({ type: 'success', title: !agent.online ? 'Agent set online' : 'Agent set offline' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update agent');
+      const message = userErrorMessage(err, 'Failed to update agent');
+      setError(message);
+      toast({ type: 'error', title: 'Agent not updated', message });
     }
   };
 
   const handleDelete = async (agent: Agent) => {
-    if (!confirm(`Delete ${agent.name}?`)) return;
+    const confirmed = await confirm({
+      title: 'Delete agent',
+      message: `Delete ${agent.name}? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       await apiDelete(`/agents/${agent.id}`);
       setAgents((current) => current.filter((item) => item.id !== agent.id));
+      toast({ type: 'success', title: 'Agent deleted' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete agent');
+      const message = userErrorMessage(err, 'Failed to delete agent');
+      setError(message);
+      toast({ type: 'error', title: 'Agent not deleted', message });
     }
   };
 

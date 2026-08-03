@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 const STATUS_COLORS: Record<string, string> = {
   open: '#25D366',
@@ -334,6 +336,7 @@ function NewConversationForm({
 }
 
 export default function InboxPage() {
+  const { toast } = useFeedback();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ConversationItem | null>(null);
@@ -352,6 +355,7 @@ export default function InboxPage() {
   const [showReassign, setShowReassign] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const conversationLoadErrorShown = useRef(false);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -361,24 +365,37 @@ export default function InboxPage() {
       if (searchQuery) params.set('search', searchQuery);
       const data = await apiGet<ConversationItem[]>(`/api/conversations?${params.toString()}`);
       setConversations(data);
-    } catch {
+      conversationLoadErrorShown.current = false;
+    } catch (err) {
+      if (!conversationLoadErrorShown.current) {
+        conversationLoadErrorShown.current = true;
+        toast({
+          type: 'warning',
+          title: 'Conversas nao atualizadas',
+          message: userErrorMessage(err, 'Nao foi possivel atualizar a lista de conversas.'),
+        });
+      }
       /* network error — keep stale list */
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, channelFilter, searchQuery]);
+  }, [statusFilter, channelFilter, searchQuery, toast]);
 
   const fetchDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
     try {
       const data = await apiGet<ConversationItem>(`/api/conversations/${id}`);
       setDetail(data);
-    } catch {
-      /* keep stale detail */
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Conversa nao carregada',
+        message: userErrorMessage(err, 'Nao foi possivel carregar os detalhes da conversa.'),
+      });
     } finally {
       setDetailLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchConversations();
@@ -402,11 +419,43 @@ export default function InboxPage() {
   }, [detail?.messages]);
 
   useEffect(() => {
-    apiGet<Agent[]>('/api/agents').then(setAgents).catch(() => {});
-    apiGet<ChannelType[]>('/api/channel-types').then(setChannelTypes).catch(() => {});
-    apiGet<ChannelConfig[]>('/api/channels').then(setChannels).catch(() => {});
-    apiGet<QuickReply[]>('/api/quick-replies').then(setQuickReplies).catch(() => {});
-  }, []);
+    apiGet<Agent[]>('/api/agents')
+      .then(setAgents)
+      .catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Agentes indisponiveis',
+          message: userErrorMessage(err, 'Nao foi possivel carregar os agentes.'),
+        });
+      });
+    apiGet<ChannelType[]>('/api/channel-types')
+      .then(setChannelTypes)
+      .catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Canais indisponiveis',
+          message: userErrorMessage(err, 'Nao foi possivel carregar o catalogo de canais.'),
+        });
+      });
+    apiGet<ChannelConfig[]>('/api/channels')
+      .then(setChannels)
+      .catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Canais nao carregados',
+          message: userErrorMessage(err, 'Nao foi possivel carregar os canais conectados.'),
+        });
+      });
+    apiGet<QuickReply[]>('/api/quick-replies')
+      .then(setQuickReplies)
+      .catch((err) => {
+        toast({
+          type: 'warning',
+          title: 'Respostas rapidas indisponiveis',
+          message: userErrorMessage(err, 'Nao foi possivel carregar as respostas rapidas.'),
+        });
+      });
+  }, [toast]);
 
   const sendMessage = async () => {
     if (!messageInput.trim() || !selectedId || sending) return;
@@ -420,8 +469,14 @@ export default function InboxPage() {
       });
       await fetchDetail(selectedId);
       fetchConversations();
-    } catch {
+      toast({ type: 'success', title: 'Mensagem enviada' });
+    } catch (err) {
       setMessageInput(content);
+      toast({
+        type: 'error',
+        title: 'Mensagem nao enviada',
+        message: userErrorMessage(err, 'Nao foi possivel enviar a mensagem. Tente novamente.'),
+      });
     } finally {
       setSending(false);
     }
@@ -433,8 +488,13 @@ export default function InboxPage() {
       await apiPut(`/api/conversations/${selectedId}`, { status });
       await fetchDetail(selectedId);
       fetchConversations();
-    } catch {
-      /* ignore */
+      toast({ type: 'success', title: 'Status atualizado' });
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Status nao atualizado',
+        message: userErrorMessage(err, 'Nao foi possivel atualizar o status da conversa.'),
+      });
     }
   };
 
@@ -445,8 +505,13 @@ export default function InboxPage() {
       await fetchDetail(selectedId);
       setShowReassign(false);
       fetchConversations();
-    } catch {
-      /* ignore */
+      toast({ type: 'success', title: 'Agente reatribuido' });
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Agente nao reatribuido',
+        message: userErrorMessage(err, 'Nao foi possivel reatribuir esta conversa.'),
+      });
     }
   };
 
@@ -460,8 +525,13 @@ export default function InboxPage() {
       await apiPost('/api/conversations', form);
       setShowNewForm(false);
       fetchConversations();
-    } catch {
-      /* ignore */
+      toast({ type: 'success', title: 'Conversa criada' });
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Conversa nao criada',
+        message: userErrorMessage(err, 'Nao foi possivel criar a conversa.'),
+      });
     }
   };
 

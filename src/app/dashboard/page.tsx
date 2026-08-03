@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiGet } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type DashboardStats = {
   totalCompanies?: number;
@@ -71,6 +73,7 @@ function formatDate(value: string) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { toast } = useFeedback();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,9 +88,13 @@ export default function DashboardPage() {
         setStats(statsData);
         setAgents(agentsData);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
+      .catch((err) => {
+        const message = userErrorMessage(err, 'Failed to load dashboard');
+        setError(message);
+        toast({ type: 'error', title: 'Dashboard not loaded', message });
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const channelRows = useMemo(() => {
     if (!stats) return [];

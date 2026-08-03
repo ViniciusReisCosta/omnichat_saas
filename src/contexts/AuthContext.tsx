@@ -3,6 +3,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiGet, apiPost } from '@/lib/api';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 interface Company {
   id: string;
@@ -40,6 +42,7 @@ interface AuthResponse {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { toast } = useFeedback();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -80,6 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await apiPost('/auth/logout');
+      toast({ type: 'success', title: 'Sessao encerrada' });
+    } catch (err) {
+      toast({
+        type: 'warning',
+        title: 'Sessao encerrada localmente',
+        message: userErrorMessage(err, 'Nao foi possivel confirmar o logout no servidor.'),
+      });
     } finally {
       setUser(null);
       router.push('/login');

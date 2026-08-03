@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import { useFeedback } from '@/contexts/FeedbackContext';
 import { apiGet } from '@/lib/api';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 type Plan = {
   id: string;
@@ -52,6 +54,7 @@ function planIcon(slug: string) {
 }
 
 export default function PricingPage() {
+  const { toast } = useFeedback();
   const [annual, setAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -61,9 +64,13 @@ export default function PricingPage() {
   useEffect(() => {
     apiGet<Plan[]>('/plans')
       .then(setPlans)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load plans'))
+      .catch((err) => {
+        const message = userErrorMessage(err, 'Failed to load plans');
+        setError(message);
+        toast({ type: 'error', title: 'Plans not loaded', message });
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const highlightedSlug = useMemo(() => {
     if (plans.some((plan) => plan.slug === 'professional')) return 'professional';

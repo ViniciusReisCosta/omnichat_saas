@@ -7,9 +7,12 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 export default function LoginPage() {
   const { login, isAuthenticated, loading: authLoading, hasActiveAccess } = useAuth();
+  const { toast } = useFeedback();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,9 +31,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const result = await login(email, password);
+      toast({ type: 'success', title: 'Login realizado' });
       router.push(result.nextStep === 'dashboard' ? '/dashboard' : '/billing');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const message = userErrorMessage(err, 'Login failed');
+      setError(message);
+      toast({ type: 'error', title: 'Login nao realizado', message });
     } finally {
       setLoading(false);
     }

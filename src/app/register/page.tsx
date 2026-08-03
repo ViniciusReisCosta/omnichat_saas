@@ -7,9 +7,12 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/contexts/FeedbackContext';
+import { userErrorMessage } from '@/lib/feedback-messages';
 
 export default function RegisterPage() {
   const { register, isAuthenticated, loading: authLoading, hasActiveAccess } = useAuth();
+  const { toast } = useFeedback();
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -30,20 +33,27 @@ export default function RegisterPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      const message = 'Passwords do not match';
+      setError(message);
+      toast({ type: 'warning', title: 'Registration form incomplete', message });
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      const message = 'Password must be at least 6 characters';
+      setError(message);
+      toast({ type: 'warning', title: 'Registration form incomplete', message });
       return;
     }
 
     setLoading(true);
     try {
       const result = await register({ name, email, password, companyName: companyName || undefined });
+      toast({ type: 'success', title: 'Account created' });
       router.push(result.nextStep === 'dashboard' ? '/dashboard' : '/billing');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      const message = userErrorMessage(err, 'Registration failed');
+      setError(message);
+      toast({ type: 'error', title: 'Account not created', message });
     } finally {
       setLoading(false);
     }
