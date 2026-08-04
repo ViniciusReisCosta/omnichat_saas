@@ -356,6 +356,7 @@ export default function InboxPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationLoadErrorShown = useRef(false);
+  const detailLoadErrorShown = useRef(false);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -381,19 +382,31 @@ export default function InboxPage() {
     }
   }, [statusFilter, channelFilter, searchQuery, toast]);
 
-  const fetchDetail = useCallback(async (id: string) => {
-    setDetailLoading(true);
+  const fetchDetail = useCallback(async (
+    id: string,
+    options: {
+      showLoading?: boolean;
+      errorTitle?: string;
+      errorFallback?: string;
+    } = {},
+  ) => {
+    const showLoading = options.showLoading ?? true;
+    if (showLoading) setDetailLoading(true);
     try {
       const data = await apiGet<ConversationItem>(`/api/conversations/${id}`);
       setDetail(data);
+      detailLoadErrorShown.current = false;
     } catch (err) {
-      toast({
-        type: 'error',
-        title: 'Conversa nao carregada',
-        message: userErrorMessage(err, 'Nao foi possivel carregar os detalhes da conversa.'),
-      });
+      if (!detailLoadErrorShown.current) {
+        detailLoadErrorShown.current = true;
+        toast({
+          type: 'error',
+          title: options.errorTitle || 'Conversa nao carregada',
+          message: userErrorMessage(err, options.errorFallback || 'Nao foi possivel carregar os detalhes da conversa.'),
+        });
+      }
     } finally {
-      setDetailLoading(false);
+      if (showLoading) setDetailLoading(false);
     }
   }, [toast]);
 
@@ -412,6 +425,18 @@ export default function InboxPage() {
     } else {
       setDetail(null);
     }
+  }, [selectedId, fetchDetail]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const interval = setInterval(() => {
+      fetchDetail(selectedId, {
+        showLoading: false,
+        errorTitle: 'Conversa nao atualizada',
+        errorFallback: 'Nao foi possivel atualizar esta conversa em tempo real.',
+      });
+    }, 3000);
+    return () => clearInterval(interval);
   }, [selectedId, fetchDetail]);
 
   useEffect(() => {
